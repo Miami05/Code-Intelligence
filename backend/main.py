@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import models
 from config import settings
+from database import Base, engine
 from routers import repositories_router, upload_router
 from routers.search import router as search_router
 
@@ -23,6 +25,12 @@ app.add_middleware(
 app.include_router(upload_router)
 app.include_router(repositories_router)
 app.include_router(search_router)
+
+
+@app.on_event("startup")
+def startup():
+    """Ensure database tables exist."""
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
