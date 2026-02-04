@@ -67,7 +67,7 @@ def generate_embeddings_for_repository(self, repository_id: str):
                 symbol_id=symbol.id,
                 embedding=embedding,
                 model=settings.openai_model,
-                dimensions=settings.embedding_dimesions,
+                dimensions=settings.embedding_dimensions,
             )
             db.add(embedding_records)
         db.commit()
