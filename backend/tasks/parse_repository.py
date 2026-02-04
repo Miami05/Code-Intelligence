@@ -3,17 +3,24 @@ import shutil
 import zipfile
 from typing import cast
 
-from celery import Task
+from celery.app.task import Task
 
 from celery_app import celery_app
+from config import settings
 from database import SessionLocal
 from models import File, Repository, Symbol
 from models.repository import RepoStatus
 from models.symbol import SymbolType
 from parsers.python_parser import extract_python_symbols
+from tasks.generate_embeddings import (
+    generate_embeddings_for_repository as _generate_embeddings_for_repository,
+)
+
+generate_embeddings_for_repository = cast(Task, _generate_embeddings_for_repository)
 
 
-def _parse_repository_task(self, repository_id: str, zip_path: str):
+@celery_app.task(bind=True, name="tasks.parse_repository.parse_repository_task")
+def parse_repository_task(self, repository_id: str, zip_path: str):
     """
     Background task to parse repository and extract symbols.
 
@@ -26,6 +33,7 @@ def _parse_repository_task(self, repository_id: str, zip_path: str):
     """
     db = SessionLocal()
     repo: Repository | None = None
+    extract_dir: str | None = None
     try:
         repo = db.query(Repository).filter(Repository.id == repository_id).first()
         if not repo:
@@ -87,6 +95,9 @@ def _parse_repository_task(self, repository_id: str, zip_path: str):
         shutil.rmtree(extract_dir, ignore_errors=True)
         print(f"✅ Repository {repository_id} completed")
         print(f"   Files: {len(python_files)}, Symbols: {total_symbols}")
+        if settings.enable_embeddings and settings.openai_api_key:
+            print(f"🤖 Triggering embedding generation...")
+            generate_embeddings_for_repository.delay(repository_id)
         return {
             "repository_id": repository_id,
             "files_processed": len(python_files),
@@ -101,11 +112,3 @@ def _parse_repository_task(self, repository_id: str, zip_path: str):
         raise
     finally:
         db.close()
-
-
-parse_repository_task = celery_app.task(
-    bind=True,
-    name="tasks.parse_repository.parse_repository_task",
-)(_parse_repository_task)
-
-parse_repository_task = cast(Task, parse_repository_task)

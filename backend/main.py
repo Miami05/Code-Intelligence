@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from routers import repositories_router, upload_router
+from routers.search import router as search_router
 
 app = FastAPI(
     title=settings.api_tittle,
@@ -21,14 +22,21 @@ app.add_middleware(
 
 app.include_router(upload_router)
 app.include_router(repositories_router)
+app.include_router(search_router)
 
 
 @app.get("/")
 def root():
-    """API information"""
+    """API information."""
     return {
-        "message": settings.api_tittle,
+        "message": settings.api_title,
         "version": settings.api_version,
+        "features": [
+            "Code parsing",
+            "Symbol extraction",
+            "Semantic search",
+            "Vector embeddings",
+        ],
         "docs": "/docs",
         "health": "/health",
     }
@@ -41,6 +49,7 @@ def health():
         "status": "healthy",
         "service": settings.api_tittle.lower().replace(" ", "-"),
         "version": settings.api_version,
+        "embedding_enabled": settings.enable_embeddings,
     }
 
 
@@ -48,10 +57,15 @@ def health():
 def get_config():
     """Get non-sensitive config (for debugging)."""
     return {
-        "api_title": settings.api_tittle,
+        "api_title": settings.api_title,
         "api_version": settings.api_version,
         "upload_dir": settings.upload_dir,
         "max_upload_size_mb": settings.max_upload_size_mb,
-        "allowed_extensions": settings.allowed_extension,
+        "allowed_extensions": settings.allowed_extensions,
         "task_time_limit": settings.task_time_limit,
+        "embeddings_enabled": settings.enable_embeddings,
+        "openai_model": (
+            settings.openai_model if settings.openai_api_key else "not configured"
+        ),
+        "embedding_dimensions": settings.embedding_dimensions,
     }
