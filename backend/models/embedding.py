@@ -15,7 +15,7 @@ class Embedding(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
     symbol_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("symbol.id", ondelete="CASCADE"),
+        ForeignKey("symbols.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
         index=True,
