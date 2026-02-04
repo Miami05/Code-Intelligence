@@ -49,7 +49,7 @@ def semantic_search(
                 f.repository_id,
                 1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
             FROM symbols s
-            JOIN embeddings e ON s.id = e.symbol_id
+            JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
             JOIN files f ON s.file_id = f.id
             WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
               AND f.repository_id = :repository_id
@@ -77,7 +77,7 @@ def semantic_search(
                 f.repository_id,
                 1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
             FROM symbols s
-            JOIN embeddings e ON s.id = e.symbol_id
+            JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
             JOIN files f ON s.file_id = f.id
             WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
             ORDER BY e.embedding <=> CAST(:query_embedding AS vector)
@@ -153,7 +153,7 @@ def find_similiar_symbols(
             f.repository_id,
             1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
         FROM symbols s
-        JOIN embeddings e ON s.id = e.symbol_id
+        JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
         JOIN files f ON s.file_id = f.id
         WHERE s.id != :exclude_id
           AND 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
