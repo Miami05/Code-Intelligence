@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-import models
 from config import settings
 from database import Base, engine
 from routers import repositories_router, upload_router
@@ -30,6 +30,9 @@ app.include_router(search_router)
 @app.on_event("startup")
 def startup():
     """Ensure database tables exist."""
+    if settings.enable_embeddings and engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(bind=engine)
 
 
