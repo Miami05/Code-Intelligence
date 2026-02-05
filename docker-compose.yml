@@ -28,5 +28,21 @@ services:
       timeout: 3s
       retries: 5
 
+  backend:
+    build: ./backend
+    container_name: code_intel_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://codeuser:codepass123@postgres:5432/codedb
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
 volumes:
   postgres_data:
