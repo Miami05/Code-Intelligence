@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     api_debug: bool = True
     cors_origins: list[str] = ["*"]
 
+    # OpenAI settings Sprint 3
+    openai_api_key: str = ""
+    openai_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+
+    # Vector search settings
+    enable_embeddings: bool = True
+    similarity_threshold: float = 0.7
+    max_search_results: int = 20
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

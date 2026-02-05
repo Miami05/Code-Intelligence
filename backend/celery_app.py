@@ -6,7 +6,7 @@ celery_app = Celery(
     settings.api_tittle.lower().replace(" ", "_"),
     broker=settings.celery_broker,
     backend=settings.celery_backend,
-    include=["tasks.parse_repository"],
+    include=["tasks.parse_repository", "tasks.generate_embeddings"],
 )
 
 celery_app.conf.update(
@@ -21,4 +21,7 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
 )
 
-celery_app.conf.task_routes = {"tasks.parse_repository.*": {"queue": "parsing"}}
+celery_app.conf.task_routes = {
+    "tasks.parse_repository.*": {"queue": "parsing"},
+    "tasks.generate_embeddings.*": {"queue": "embeddings"},
+}

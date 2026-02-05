@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg16
     container_name: code_intel_db
     environment:
       POSTGRES_DB: codedb
@@ -17,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    command: postgres -c shared_preload_libraries=vector
 
   redis:
     image: redis:7-alpine

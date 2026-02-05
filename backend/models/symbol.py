@@ -1,10 +1,12 @@
 import enum
 import uuid
+from typing import Optional
 
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
 
@@ -30,11 +32,11 @@ class Symbol(Base):
         nullable=False,
         index=True,
     )
-    name = Column(String(255), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     type = Column(SQLEnum(SymbolType), nullable=False, index=True)
     line_start = Column(Integer, nullable=False)
     line_end = Column(Integer)
-    signature = Column(Text)
+    signature: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
