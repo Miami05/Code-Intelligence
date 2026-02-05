@@ -1,11 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
 from config import settings
 from database import Base, engine
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routers import repositories_router, upload_router
 from routers.search import router as search_router
+from sqlalchemy import text
 
 app = FastAPI(
     title=settings.api_tittle,
@@ -16,6 +15,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
