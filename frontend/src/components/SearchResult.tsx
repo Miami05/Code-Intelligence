@@ -1,5 +1,4 @@
-import React from "react";
-import { SearchResult } from "../services/api";
+import type { SearchResult } from "../services/api";
 import { FileCode, Package, Target } from "lucide-react";
 
 interface SearchResultsProps {

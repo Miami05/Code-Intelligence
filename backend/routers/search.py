@@ -1,12 +1,11 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, text
-from sqlalchemy.orm import Session
-
 from config import settings
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models import Embedding, File, Symbol, embedding
+from sqlalchemy import func, text
+from sqlalchemy.orm import Session
 from utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -58,7 +57,7 @@ def semantic_search(
         """
         )
         params = {
-            "query_embedding": query_embedding,
+            "query_embedding": f"[{','.join(map(str, query_embedding))}]",
             "threshold": threshold,
             "limit": limit,
             "repository_id": repository_id,
@@ -85,7 +84,7 @@ def semantic_search(
         """
         )
         params = {
-            "query_embedding": query_embedding,
+            "query_embedding": f"[{','.join(map(str, query_embedding))}]",
             "threshold": threshold,
             "limit": limit,
         }

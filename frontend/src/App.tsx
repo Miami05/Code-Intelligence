@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResult";
 import { Stats } from "./components/Stats";
-import { searchAPI, SearchResponse } from "./services/api";
+import { searchAPI, type SearchResponse } from "./services/api";
 import { Code2, Sparkles } from "lucide-react";
 
 function App() {
