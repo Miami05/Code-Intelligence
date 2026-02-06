@@ -51,7 +51,7 @@ services:
   celery_worker:
     build: ./backend
     container_name: code_intel_celery
-    command: celery -A celery_app worker --loglevel=info -Q default
+    command: celery -A celery_app worker --loglevel=info -Q parsing,embeddings,default
     depends_on:
       postgres:
         condition: service_healthy
