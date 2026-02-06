@@ -4,17 +4,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with verbose output
-RUN npm install --loglevel verbose
+# Install dependencies
+RUN npm install
 
 # Copy source files
 COPY . .
 
-# List files for debugging
-RUN ls -la
-
-# Build with verbose output
-RUN npm run build -- --logLevel info || (echo "Build failed!" && cat /root/.npm/_logs/*.log && exit 1)
+# Build
+RUN npm run build 2>&1
 
 # Production stage
 FROM nginx:alpine
