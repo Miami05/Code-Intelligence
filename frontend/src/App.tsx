@@ -4,7 +4,7 @@ import { SearchResults } from "./components/SearchResult";
 import { Stats } from "./components/Stats";
 import { RepositoryUpload } from "./components/RepositoryUpload";
 import { searchAPI, type SearchResponse } from "./services/api";
-import { Code2, Sparkles, Upload as UploadIcon, AlertCircle } from "lucide-react";
+import { Code2, Upload as UploadIcon, Menu, X } from "lucide-react";
 
 function App() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
@@ -13,8 +13,8 @@ function App() {
   const [searchTime, setSearchTime] = useState<number | undefined>(undefined);
   const [showUpload, setShowUpload] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Fetch stats on mount
   useEffect(() => {
     fetchStats();
   }, []);
@@ -32,23 +32,15 @@ function App() {
   const handleSearch = async (query: string, threshold: number) => {
     setIsLoading(true);
     setError(null);
-
     const startTime = performance.now();
 
     try {
       const results = await searchAPI.semanticSearch(query, threshold);
       const endTime = performance.now();
-
       setSearchResults(results);
       setSearchTime(Math.round(endTime - startTime));
-      
-      if (results.total_results === 0) {
-        setError("No results found. Try adjusting your search query or uploading more code.");
-      }
     } catch (err) {
-      setError(
-        "Failed to search. Make sure the backend is running on http://localhost:8000",
-      );
+      setError("Search failed. Please check if the backend is running.");
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -61,81 +53,103 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Code2 className="w-8 h-8 text-blue-500" />
-              <div>
-                <h1 className="text-3xl font-bold text-white">Code Intelligence</h1>
-                <p className="text-gray-400 text-sm mt-1">
-                  Semantic code search powered by AI embeddings
-                </p>
+    <div className="min-h-screen bg-white dark:bg-gray-950">
+      {/* Modern Header */}
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-xl">
+                <Code2 className="w-6 h-6 text-white" />
               </div>
-              <Sparkles className="w-6 h-6 text-yellow-400" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Code Intelligence</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">AI-Powered Search</p>
+              </div>
             </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-4">
+              {stats && (
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="text-gray-600 dark:text-gray-300">
+                    <span className="font-semibold text-gray-900 dark:text-white">{stats.total_symbols.toLocaleString()}</span> symbols
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-300">
+                    <span className="font-semibold text-green-600 dark:text-green-400">{stats.coverage}%</span> coverage
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowUpload(!showUpload)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 flex items-center gap-2"
+              >
+                <UploadIcon className="w-4 h-4" />
+                <span>Upload</span>
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
             <button
-              onClick={() => setShowUpload(!showUpload)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
             >
-              <UploadIcon className="w-4 h-4" />
-              Upload Code
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-800">
+              {stats && (
+                <div className="flex flex-col gap-2 mb-4 text-sm">
+                  <div className="text-gray-600 dark:text-gray-300">
+                    Symbols: <span className="font-semibold text-gray-900 dark:text-white">{stats.total_symbols.toLocaleString()}</span>
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-300">
+                    Coverage: <span className="font-semibold text-green-600 dark:text-green-400">{stats.coverage}%</span>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowUpload(!showUpload);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium"
+              >
+                <UploadIcon className="w-4 h-4 inline mr-2" />
+                Upload Code
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* Stats Bar */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <p className="text-gray-400 text-sm">Total Symbols</p>
-              <p className="text-2xl font-bold text-white mt-1">{stats.total_symbols.toLocaleString()}</p>
-            </div>
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <p className="text-gray-400 text-sm">Embeddings</p>
-              <p className="text-2xl font-bold text-white mt-1">{stats.total_embeddings.toLocaleString()}</p>
-            </div>
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <p className="text-gray-400 text-sm">Coverage</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">{stats.coverage}%</p>
-            </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Upload Section */}
+        {showUpload && (
+          <div className="mb-8">
+            <RepositoryUpload onUploadSuccess={handleUploadSuccess} />
           </div>
         )}
 
-        {/* Upload Section */}
-        {showUpload && (
-          <RepositoryUpload onUploadSuccess={handleUploadSuccess} />
-        )}
-
-        {/* Search Bar */}
-        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+        {/* Search Section */}
+        <div className="mb-8">
+          <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+        </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-8">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-red-400">Search Failed</h3>
-                <p className="text-sm text-red-300">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="text-sm text-red-400 underline mt-2 hover:text-red-300"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
+          <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+            <p className="text-red-800 dark:text-red-200 font-medium">{error}</p>
           </div>
         )}
 
         {/* Search Results */}
-        {searchResults && (
+        {searchResults && searchResults.total_results > 0 && (
           <>
             <Stats
               totalResults={searchResults.total_results}
@@ -151,20 +165,24 @@ function App() {
 
         {/* Empty State */}
         {!searchResults && !error && !showUpload && (
-          <div className="text-center py-20 bg-slate-800/30 rounded-lg border border-slate-700">
-            <Code2 className="w-20 h-20 text-gray-600 mx-auto mb-6" />
-            <h2 className="text-2xl font-semibold text-gray-300 mb-2">
-              Start Your Search
+          <div className="text-center py-20">
+            <div className="mb-8">
+              <div className="inline-flex p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-xl shadow-blue-500/25">
+                <Code2 className="w-16 h-16 text-white" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Search Your Codebase
             </h2>
-            <p className="text-gray-500 mb-6">
-              Search for functions, classes, or any code concept using natural language
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
+              Use natural language to find functions, classes, and patterns in your code. Powered by AI embeddings for semantic understanding.
             </p>
             {stats && stats.total_symbols === 0 && (
               <button
                 onClick={() => setShowUpload(true)}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium inline-flex items-center gap-2"
+                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold text-lg shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 transition-all inline-flex items-center gap-3"
               >
-                <UploadIcon className="w-5 h-5" />
+                <UploadIcon className="w-6 h-6" />
                 Upload Your First Repository
               </button>
             )}
@@ -173,9 +191,11 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-700 mt-20">
-        <div className="max-w-7xl mx-auto px-6 py-6 text-center text-gray-500 text-sm">
-          Built with React + FastAPI + PostgreSQL + OpenAI Embeddings 🚀
+      <footer className="border-t border-gray-200 dark:border-gray-800 mt-20 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Powered by OpenAI Embeddings • FastAPI • PostgreSQL • React
+          </p>
         </div>
       </footer>
     </div>
