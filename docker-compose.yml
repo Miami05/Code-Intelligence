@@ -38,12 +38,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    env_file:
+      - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://codeuser:codepass123@postgres:5432/codedb
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./backend:/app
 
@@ -56,12 +57,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    env_file:
+      - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://codeuser:codepass123@postgres:5432/codedb
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./backend:/app
 
