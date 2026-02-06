@@ -1,3 +1,4 @@
+import React from "react";
 import { Clock, Target, TrendingUp } from "lucide-react";
 
 interface StatsProps {
