@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Search, Loader2, Sparkles } from "lucide-react";
 
 interface SearchBarProps {
