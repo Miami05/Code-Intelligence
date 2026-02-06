@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Loader2, CheckCircle, XCircle, FolderArchive } from "lucide-react";
+import { Upload, Loader2, CheckCircle, XCircle, FolderArchive, X } from "lucide-react";
 
 interface RepositoryUploadProps {
   onUploadSuccess?: () => void;
@@ -20,7 +20,7 @@ export const RepositoryUpload: React.FC<RepositoryUploadProps> = ({
     if (!file.name.endsWith(".zip")) {
       setUploadStatus({
         type: "error",
-        message: "Please upload a .zip file",
+        message: "Please upload a .zip file containing your code repository",
       });
       return;
     }
@@ -41,16 +41,17 @@ export const RepositoryUpload: React.FC<RepositoryUploadProps> = ({
         throw new Error("Upload failed");
       }
 
-      const data = await response.json();
       setUploadStatus({
         type: "success",
-        message: `Successfully uploaded ${file.name}. Processing in background...`,
+        message: `Successfully uploaded ${file.name}! Processing embeddings in background...`,
       });
-      onUploadSuccess?.();
+      setTimeout(() => {
+        onUploadSuccess?.();
+      }, 2000);
     } catch (error) {
       setUploadStatus({
         type: "error",
-        message: "Upload failed. Make sure the backend is running.",
+        message: "Upload failed. Make sure the backend is running on port 8000.",
       });
     } finally {
       setUploading(false);
@@ -85,12 +86,12 @@ export const RepositoryUpload: React.FC<RepositoryUploadProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto mb-8">
+    <div className="w-full">
       <div
-        className={`border-2 border-dashed rounded-lg p-8 transition-all ${
+        className={`relative border-3 border-dashed rounded-2xl p-12 transition-all ${
           dragActive
-            ? "border-blue-500 bg-blue-500/10"
-            : "border-slate-600 bg-slate-800/50"
+            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-[1.02]"
+            : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-blue-400 dark:hover:border-blue-600"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -108,29 +109,46 @@ export const RepositoryUpload: React.FC<RepositoryUploadProps> = ({
 
         <div className="text-center">
           {uploading ? (
-            <div className="space-y-4">
-              <Loader2 className="w-16 h-16 text-blue-500 mx-auto animate-spin" />
-              <p className="text-gray-300 font-medium">Uploading...</p>
+            <div className="space-y-6">
+              <div className="relative inline-flex">
+                <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-25"></div>
+                <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-full">
+                  <Loader2 className="w-12 h-12 text-white animate-spin" />
+                </div>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">Uploading...</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">Processing your repository</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <FolderArchive className="w-16 h-16 text-gray-500 mx-auto" />
+            <div className="space-y-6">
+              <div className="inline-flex p-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-xl shadow-blue-500/25">
+                <FolderArchive className="w-16 h-16 text-white" />
+              </div>
               <div>
-                <p className="text-gray-300 font-medium mb-2">
-                  Drag & drop a .zip file here
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                  Upload Your Repository
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
+                  Drag & drop a .zip file here, or click to browse
                 </p>
-                <p className="text-gray-500 text-sm mb-4">or</p>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl transition-all font-semibold text-lg shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 inline-flex items-center gap-3"
                 >
-                  <Upload className="w-5 h-5 inline mr-2" />
+                  <Upload className="w-6 h-6" />
                   Choose File
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-4">
-                Upload a .zip file containing your source code repository
-              </p>
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  📦 Supported format: .zip files containing source code
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  🤖 AI embeddings will be generated automatically
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -138,26 +156,43 @@ export const RepositoryUpload: React.FC<RepositoryUploadProps> = ({
         {/* Status Messages */}
         {uploadStatus.type && (
           <div
-            className={`mt-6 p-4 rounded-lg flex items-center gap-3 ${
+            className={`mt-6 p-5 rounded-xl flex items-start gap-4 border-2 ${
               uploadStatus.type === "success"
-                ? "bg-green-500/10 border border-green-500/50"
-                : "bg-red-500/10 border border-red-500/50"
+                ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
+                : "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700"
             }`}
           >
             {uploadStatus.type === "success" ? (
-              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0" />
             ) : (
-              <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <XCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0" />
             )}
-            <p
-              className={`text-sm ${
-                uploadStatus.type === "success"
-                  ? "text-green-300"
-                  : "text-red-300"
-              }`}
+            <div className="flex-1">
+              <p
+                className={`font-semibold ${
+                  uploadStatus.type === "success"
+                    ? "text-green-900 dark:text-green-100"
+                    : "text-red-900 dark:text-red-100"
+                }`}
+              >
+                {uploadStatus.type === "success" ? "Success!" : "Upload Failed"}
+              </p>
+              <p
+                className={`text-sm mt-1 ${
+                  uploadStatus.type === "success"
+                    ? "text-green-700 dark:text-green-300"
+                    : "text-red-700 dark:text-red-300"
+                }`}
+              >
+                {uploadStatus.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setUploadStatus({ type: null, message: "" })}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              {uploadStatus.message}
-            </p>
+              <X className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>
