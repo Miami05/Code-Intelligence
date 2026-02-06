@@ -1,3 +1,4 @@
+import React from "react";
 import type { SearchResult } from "../services/api";
 import { FileCode, Target, Folder, Hash } from "lucide-react";
 
@@ -25,13 +26,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   }
 
   const getTypeIcon = (type: string) => {
-    const icons = {
+    const icons: Record<string, string> = {
       function: "🔵",
       class_: "🟣",
       method: "🟢",
       variable: "🟡",
     };
-    return icons[type as keyof typeof icons] || "⚪";
+    return icons[type] || "⚪";
   };
 
   const getTypeColor = (type: string) => {
