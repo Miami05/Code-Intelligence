@@ -39,7 +39,7 @@ def startup():
 def root():
     """API information."""
     return {
-        "message": settings.api_title,
+        "message": settings.api_tittle,
         "version": settings.api_version,
         "features": [
             "Code parsing",
