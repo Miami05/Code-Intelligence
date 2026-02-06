@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Sparkles } from "lucide-react";
 
 interface SearchBarProps {
   onSearch: (query: string, threshold: number) => void;
@@ -12,94 +12,98 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [query, setQuery] = useState("");
   const [threshold, setThreshold] = useState(0.4);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
       onSearch(query, threshold);
-      // Add to history (keep last 5)
-      setSearchHistory(prev => {
-        const newHistory = [query, ...prev.filter(q => q !== query)];
-        return newHistory.slice(0, 5);
-      });
     }
   };
 
-  const handleHistoryClick = (historicalQuery: string) => {
-    setQuery(historicalQuery);
-    onSearch(historicalQuery, threshold);
-  };
+  const exampleQueries = [
+    "functions that handle authentication",
+    "database connection setup",
+    "calculate totals",
+    "parse JSON data",
+  ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto mb-8">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Search Input */}
+    <div className="w-full">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Main Search Input */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search className="w-6 h-6 text-gray-400" />
+          </div>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g., 'functions that calculate totals' or 'database connection classes'"
-            className="w-full pl-12 pr-4 py-4 bg-slate-800 border border-slate-700 rounded-lg 
-                     text-white placeholder-gray-400 focus:outline-none focus:ring-2 
-                     focus:ring-blue-500 focus:border-transparent text-lg transition-all"
+            placeholder="Search your codebase with natural language..."
+            className="w-full pl-14 pr-4 py-5 text-lg bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:shadow-md"
             disabled={isLoading}
           />
         </div>
 
-        {/* Search History */}
-        {searchHistory.length > 0 && !isLoading && (
-          <div className="flex gap-2 flex-wrap">
-            <span className="text-xs text-gray-500">Recent:</span>
-            {searchHistory.slice(0, 3).map((term, idx) => (
+        {/* Example Queries */}
+        {!query && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <Sparkles className="w-4 h-4" />
+              Try:
+            </span>
+            {exampleQueries.map((example, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => handleHistoryClick(term)}
-                className="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm text-gray-300 transition-colors"
+                onClick={() => setQuery(example)}
+                className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
               >
-                {term}
+                {example}
               </button>
             ))}
           </div>
         )}
 
-        {/* Threshold Slider */}
-        <div className="flex items-center space-x-4">
-          <label className="text-sm text-gray-300 font-medium whitespace-nowrap">
-            Similarity: <span className="text-blue-400">{(threshold * 100).toFixed(0)}%</span>
-          </label>
-          <input
-            type="range"
-            min="0.2"
-            max="0.9"
-            step="0.1"
-            value={threshold}
-            onChange={(e) => setThreshold(parseFloat(e.target.value))}
-            className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            disabled={isLoading}
-          />
+        {/* Threshold Control */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+              Similarity Threshold:
+            </label>
+            <div className="flex items-center gap-3 flex-1">
+              <input
+                type="range"
+                min="0.2"
+                max="0.9"
+                step="0.1"
+                value={threshold}
+                onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                disabled={isLoading}
+              />
+              <span className="px-3 py-1 text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 min-w-[60px] text-center">
+                {(threshold * 100).toFixed(0)}%
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Search Button */}
         <button
           type="submit"
           disabled={isLoading || !query.trim()}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 
-                   disabled:cursor-not-allowed text-white font-semibold py-3 px-6 
-                   rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-gray-700 dark:disabled:to-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
         >
           {isLoading ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Searching...
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span>Searching...</span>
             </>
           ) : (
             <>
-              <Search className="w-5 h-5" />
-              Search Code
+              <Search className="w-6 h-6" />
+              <span>Search Code</span>
             </>
           )}
         </button>
