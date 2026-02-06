@@ -1,12 +1,22 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm install
 
+# Install dependencies with verbose output
+RUN npm install --loglevel verbose
+
+# Copy source files
 COPY . .
-RUN npm run build
 
+# List files for debugging
+RUN ls -la
+
+# Build with verbose output
+RUN npm run build -- --logLevel info || (echo "Build failed!" && cat /root/.npm/_logs/*.log && exit 1)
+
+# Production stage
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
