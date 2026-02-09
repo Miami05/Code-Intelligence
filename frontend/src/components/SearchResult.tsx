@@ -1,6 +1,7 @@
 import React from "react";
-import type { SearchResult } from "../services/api";
+import { SearchResult } from "../types/api";
 import { FileCode, Target, Folder, Hash } from "lucide-react";
+import { LanguageBadge } from "./LanguageBadge";
 
 interface SearchResultsProps {
   results: SearchResult[];
@@ -17,7 +18,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         <div className="mb-4">
           <FileCode className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto" />
         </div>
-        <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No results found</p>
+        <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          No results found
+        </p>
         <p className="text-gray-600 dark:text-gray-400">
           Try lowering the similarity threshold or using different keywords
         </p>
@@ -37,17 +40,26 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      function: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-      class_: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-      method: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
-      variable: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
+      function:
+        "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      class_:
+        "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+      method:
+        "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
+      variable:
+        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
     };
-    return colors[type] || "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700";
+    return (
+      colors[type] ||
+      "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+    );
   };
 
   const getSimilarityColor = (similarity: number) => {
-    if (similarity >= 0.7) return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700";
-    if (similarity >= 0.5) return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
+    if (similarity >= 0.7)
+      return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700";
+    if (similarity >= 0.5)
+      return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700";
     return "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700";
   };
 
@@ -60,7 +72,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {results.length} Result{results.length !== 1 ? "s" : ""}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            for <span className="font-semibold text-gray-900 dark:text-white">"{query}"</span>
+            for{" "}
+            <span className="font-semibold text-gray-900 dark:text-white">
+              "{query}"
+            </span>
           </p>
         </div>
       </div>
@@ -76,16 +91,24 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="text-2xl mt-1 flex-shrink-0">{getTypeIcon(result.type)}</div>
+                <div className="text-2xl mt-1 flex-shrink-0">
+                  {getTypeIcon(result.type)}
+                </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 truncate">
                     {result.name}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getTypeColor(result.type)}`}>
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getTypeColor(result.type)}`}
+                    >
                       {result.type}
                     </span>
-                    <span className={`px-3 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 ${getSimilarityColor(result.similarity)}`}>
+                    {/* NEW: Language Badge */}
+                    <LanguageBadge language={result.language} size="sm" />
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 ${getSimilarityColor(result.similarity)}`}
+                    >
                       <Target className="w-3 h-3" />
                       {(result.similarity * 100).toFixed(1)}% match
                     </span>

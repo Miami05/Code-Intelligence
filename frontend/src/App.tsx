@@ -11,6 +11,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import { Language } from "./types/api";
 
 function App() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(
@@ -49,17 +50,26 @@ function App() {
     }
   };
 
-  const handleSearch = async (query: string, threshold: number) => {
+  // Update the handleSearch function (around line 60):
+  const handleSearch = async (
+    query: string,
+    threshold: number,
+    language?: Language,
+  ) => {
     setIsLoading(true);
     setError(null);
     const startTime = performance.now();
 
     try {
-      const results = await searchAPI.semanticSearch(query, threshold);
+      const results = await searchAPI.semanticSearch({
+        query,
+        threshold,
+        language,
+      });
       const endTime = performance.now();
       setSearchResults(results);
       setSearchTime(Math.round(endTime - startTime));
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage =
         err.response?.data?.detail || err.message || "Search failed";
       setError(
