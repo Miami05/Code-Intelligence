@@ -174,14 +174,25 @@ def extract_cobol_symbols(source_code: str, filename: str) -> List[Dict]:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".cob", delete=False) as f:
         f.write(source_code)
         temp_path = f.name
+
     try:
         symbols = parser.parse_file(temp_path, "temp")
         result = []
+
+        type_mapping = {
+            "program": "class_",
+            "paragraph": "procedure",
+            "variable": "variable",
+        }
+
         for sym in symbols:
+            original_type = sym["type"]
+            mapped_type = type_mapping.get(original_type, "function")
+
             result.append(
                 {
                     "name": sym["name"],
-                    "type": sym["type"],
+                    "type": mapped_type,
                     "line_start": sym["start_line"],
                     "line_end": sym["end_line"],
                     "signature": sym.get("signature", ""),

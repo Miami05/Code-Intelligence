@@ -145,19 +145,27 @@ def extract_assembly_symbols(source_code: str, filename: str) -> List[Dict]:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".asm", delete=False) as f:
         f.write(source_code)
         temp_path = f.name
-        try:
-            symbols = parser.parse_files(temp_path, "temp")
-            result = []
-            for sym in symbols:
-                result.append(
-                    {
-                        "name": sym["name"],
-                        "type": sym["type"],
-                        "line_start": sym["start_line"],
-                        "line_end": sym["end_line"],
-                        "signature": sym.get("signature", ""),
-                    }
-                )
-            return result
-        finally:
-            os.unlink(temp_path)
+
+    try:
+        symbols = parser.parse_files(temp_path, "temp")
+        result = []
+        type_mapping = {
+            "function": "function",
+            "section": "label",
+            "global": "function",
+        }
+        for sym in symbols:
+            original_type = sym["type"]
+            mapped_type = type_mapping.get(original_type, "function")
+            result.append(
+                {
+                    "name": sym["name"],
+                    "type": mapped_type,
+                    "line_start": sym["start_line"],
+                    "line_end": sym["end_line"],
+                    "signature": sym.get("signature", ""),
+                }
+            )
+        return result
+    finally:
+        os.unlink(temp_path)

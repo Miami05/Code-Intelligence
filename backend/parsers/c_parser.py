@@ -135,21 +135,78 @@ def extract_c_symbols(source_code: str, filename: str) -> List[Dict]:
     Wrapper function to extract C symbols.
     Compatible with parse_repository.py interface.
     """
-    parser = CParser()
-    tree = parser.parser.parse(bytes(source_code, "utf-8"))
-    symbols = []
-    parser._extract_symbols(
-        tree.root_node, bytes(source_code, "utf-8"), filename, "temp", symbols
-    )
-    result = []
-    for sym in symbols:
-        result.append(
-            {
-                "name": sym["name"],
-                "type": sym["type"],
-                "line_start": sym["start_line"],
-                "line_end": sym["end_line"],
-                "signature": sym.get("signature", ""),
-            }
-        )
-    return result
+    try:
+        parser = get_parser("c")
+        tree = parser.parse(bytes(source_code, "utf-8"))
+
+        symbols = []
+
+        def extract_from_node(node, source_bytes: bytes):
+            if node.type == "function_definition":
+                declarator = node.child_by_field_name("declarator")
+                func_name = "unknown"
+
+                if declarator:
+                    if declarator.type == "function_declarator":
+                        name_node = declarator.child_by_field_name("declarator")
+                        if name_node:
+                            func_name = source_bytes[
+                                name_node.start_byte : name_node.end_byte
+                            ].decode("utf-8")
+                    elif declarator.type == "pointer_declarator":
+                        decl = declarator.child_by_field_name("declarator")
+                        if decl and decl.type == "function_declarator":
+                            name_node = decl.child_by_field_name("declarator")
+                            if name_node:
+                                func_name = source_bytes[
+                                    name_node.start_byte : name_node.end_byte
+                                ].decode("utf-8")
+                    elif declarator.type == "identifier":
+                        func_name = source_bytes[
+                            declarator.start_byte : declarator.end_byte
+                        ].decode("utf-8")
+
+                full_text = source_bytes[node.start_byte : node.end_byte].decode(
+                    "utf-8", errors="ignore"
+                )
+                first_line = full_text.split("\n")[0].strip()
+                if len(first_line) > 100:
+                    signature = first_line[:100] + "..."
+                else:
+                    signature = first_line + " {...}"
+
+                symbols.append(
+                    {
+                        "name": func_name,
+                        "type": "function",
+                        "line_start": node.start_point[0] + 1,
+                        "line_end": node.end_point[0] + 1,
+                        "signature": signature,
+                    }
+                )
+
+            elif node.type == "struct_specifier":
+                name_node = node.child_by_field_name("name")
+                if name_node:
+                    name = source_bytes[
+                        name_node.start_byte : name_node.end_byte
+                    ].decode("utf-8")
+                    symbols.append(
+                        {
+                            "name": name,
+                            "type": "class_",
+                            "line_start": node.start_point[0] + 1,
+                            "line_end": node.end_point[0] + 1,
+                            "signature": f"struct {name}",
+                        }
+                    )
+
+            for child in node.children:
+                extract_from_node(child, source_bytes)
+
+        extract_from_node(tree.root_node, bytes(source_code, "utf-8"))
+        return symbols
+
+    except Exception as e:
+        print(f"Error parsing C file {filename}: {e}")
+        return []
