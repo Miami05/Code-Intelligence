@@ -1,11 +1,12 @@
 from typing import Optional
 
-from config import settings
-from database import get_db
-from fastapi import APIRouter, Depends, HTTPException, Query
-from models import Embedding, File, Symbol, embedding
+from fastapi import APIRouter, Depends, HTTPException, Query, params
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
+
+from config import settings
+from database import get_db
+from models import Embedding, File, Symbol, embedding
 from utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -17,6 +18,9 @@ def semantic_search(
     limit: int = Query(default=10, le=50),
     threshold: Optional[float] = Query(default=None, ge=0.0, le=1.0),
     repository_id: Optional[str] = Query(None),
+    language: Optional[str] = Query(
+        None, description="Filter by language (python, c, assembly, cobol)"
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -34,65 +38,46 @@ def semantic_search(
     print(f"🔍 Semantic search: '{query}'")
     query_embedding = generate_embedding(query)
     threshold = threshold or settings.similarity_threshold
+    sql_parts = [
+        """
+        SELECT 
+            s.id as symbol_id,
+            s.name,
+            s.type,
+            s.signature,
+            s.line_start,
+            s.line_end,
+            f.file_path,
+            f.repository_id,
+            f.language,
+            1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
+        FROM symbols s
+        JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
+        JOIN files f ON s.file_id = f.id
+        WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
+    """
+    ]
+    params = {
+        "query_embedding": f"[{','.join(map(str, query_embedding))}]",
+        "threshold": threshold,
+        "limit": limit,
+    }
     if repository_id:
-        sql = text(
-            """
-            SELECT 
-                s.id as symbol_id,
-                s.name,
-                s.type,
-                s.signature,
-                s.line_start,
-                s.line_end,
-                f.file_path,
-                f.repository_id,
-                1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
-            FROM symbols s
-            JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
-            JOIN files f ON s.file_id = f.id
-            WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
-              AND f.repository_id = :repository_id
-            ORDER BY e.embedding <=> CAST(:query_embedding AS vector)
-            LIMIT :limit
-        """
-        )
-        params = {
-            "query_embedding": f"[{','.join(map(str, query_embedding))}]",
-            "threshold": threshold,
-            "limit": limit,
-            "repository_id": repository_id,
-        }
-    else:
-        sql = text(
-            """
-            SELECT 
-                s.id as symbol_id,
-                s.name,
-                s.type,
-                s.signature,
-                s.line_start,
-                s.line_end,
-                f.file_path,
-                f.repository_id,
-                1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
-            FROM symbols s
-            JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
-            JOIN files f ON s.file_id = f.id
-            WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
-            ORDER BY e.embedding <=> CAST(:query_embedding AS vector)
-            LIMIT :limit
-        """
-        )
-        params = {
-            "query_embedding": f"[{','.join(map(str, query_embedding))}]",
-            "threshold": threshold,
-            "limit": limit,
-        }
+        sql_parts.append("AND f.repository_id = :repository_id")
+        params["repository_id"] = repository_id
+    if language:
+        sql_parts.append("AND f.language = :language")
+        params["language"] = language
+    sql_parts.append("ORDER BY e.embedding <=> CAST(:query_embedding AS vector)")
+    sql_parts.append("LIMIT :limit")
+    sql = text("\n".join(sql_parts))
     results = db.execute(sql, params).fetchall()
     print(f"  ✓ Found {len(results)} results")
     return {
         "query": query,
         "threshold": threshold,
+        "language": language,
+        "repository_id": repository_id,
         "total_results": len(results),
         "results": [
             {
@@ -102,6 +87,7 @@ def semantic_search(
                 "signature": row.signature,
                 "file_path": row.file_path,
                 "repository_id": row.repository_id,
+                "language": row.language,
                 "similarity": round(float(row.similarity), 4),
                 "lines": (
                     f"{row.line_start}-{row.line_end}"
