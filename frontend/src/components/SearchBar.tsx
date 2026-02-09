@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { Search, Loader2, Sparkles } from "lucide-react";
+import { Search, Loader2, Sparkles, ChevronDown } from "lucide-react";
+import { Language } from "../types/api";
+import { ALL_LANGUAGES } from "../config/languages";
 
 interface SearchBarProps {
-  onSearch: (query: string, threshold: number) => void;
+  onSearch: (query: string, threshold: number, language?: Language) => void;
   isLoading: boolean;
 }
 
@@ -12,13 +14,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [query, setQuery] = useState("");
   const [threshold, setThreshold] = useState(0.4);
+  const [selectedLanguage, setSelectedLanguage] = useState<
+    Language | undefined
+  >();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query, threshold);
+      onSearch(query, threshold, selectedLanguage);
     }
   };
+
+  const selectedConfig = selectedLanguage
+    ? ALL_LANGUAGES.find((l) => l.value === selectedLanguage)
+    : null;
 
   const exampleQueries = [
     "functions that handle authentication",
@@ -30,20 +40,127 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div className="w-full">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Main Search Input */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="w-6 h-6 text-gray-400" />
+        {/* Main Search Input with Language Filter */}
+        <div className="flex flex-col md:flex-row gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-6 h-6 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search your codebase with natural language..."
+              className="w-full pl-14 pr-4 py-5 text-lg bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:shadow-md"
+              disabled={isLoading}
+            />
           </div>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search your codebase with natural language..."
-            className="w-full pl-14 pr-4 py-5 text-lg bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:shadow-md"
-            disabled={isLoading}
-          />
+
+          {/* Language Filter Dropdown */}
+          <div className="relative min-w-[180px]">
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full px-4 py-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700
+                       hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 
+                       focus:outline-none focus:ring-4 focus:ring-blue-500/10
+                       flex items-center justify-between gap-2 bg-white dark:bg-gray-900
+                       disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed
+                       transition-all shadow-sm hover:shadow-md"
+              disabled={isLoading}
+            >
+              <span className="flex items-center gap-2 truncate">
+                {selectedConfig ? (
+                  <>
+                    <span className="text-xl">{selectedConfig.icon}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {selectedConfig.label}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-gray-600 dark:text-gray-400">
+                    All Languages
+                  </span>
+                )}
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-gray-500 transition-transform ${
+                  isDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                <div
+                  className="absolute top-full mt-2 w-full bg-white dark:bg-gray-900 rounded-xl shadow-2xl 
+                              border-2 border-gray-200 dark:border-gray-700 z-20 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLanguage(undefined);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800
+                             transition-colors flex items-center gap-2 border-b border-gray-100 dark:border-gray-800
+                             ${!selectedLanguage ? "bg-blue-50 dark:bg-blue-900/20 font-medium" : ""}`}
+                  >
+                    <span className="text-gray-700 dark:text-gray-300">
+                      🌐 All Languages
+                    </span>
+                  </button>
+                  {ALL_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedLanguage(lang.value);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800
+                               transition-colors flex items-center gap-2
+                               ${selectedLanguage === lang.value ? "bg-blue-50 dark:bg-blue-900/20 font-medium" : ""}`}
+                    >
+                      <span className="text-xl">{lang.icon}</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {lang.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Active Filter Display */}
+        {selectedLanguage && (
+          <div className="flex items-center gap-2 animate-fadeIn">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Filtering by:
+            </span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <span className="text-lg">{selectedConfig?.icon}</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {selectedConfig?.label}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedLanguage(undefined)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ml-1"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Example Queries */}
         {!query && (
