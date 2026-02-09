@@ -132,3 +132,28 @@ class CParser:
                 declarator_node.start_byte : declarator_node.end_byte
             ].decode("utf-8")
         return "unknown"
+
+
+def extract_c_symbols(source_code: str, filename: str) -> List[Dict]:
+    """
+    Wrapper function to extract C symbols.
+    Compatible with parse_repository.py interface.
+    """
+    parser = CParser()
+    tree = parser.parser.parse(bytes(source_code, "utf-8"))
+    symbols = []
+    parser._extract_symbols(
+        tree.root_node, bytes(source_code, "utf-8"), filename, "temp", symbols
+    )
+    result = []
+    for sym in symbols:
+        result.append(
+            {
+                "name": sym["name"],
+                "type": sym["type"],
+                "line_start": sym["start_line"],
+                "line_end": sym["end_line"],
+                "signature": sym.get("signature", ""),
+            }
+        )
+    return result

@@ -1,4 +1,6 @@
+import os
 import re
+import tempfile
 import uuid
 from typing import Dict, List
 
@@ -161,3 +163,30 @@ class CobolParser:
                         break
         for child in node.children:
             self._extract_symbols(child, source_code, file_path, repository_id, symbols)
+
+
+def extract_cobol_symbols(source_code: str, filename: str) -> List[Dict]:
+    """
+    Wrapper function to extract COBOL symbols.
+    Compatible with parse_repository.py interface.
+    """
+    parser = CobolParser()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cob", delete=False) as f:
+        f.write(source_code)
+        temp_path = f.name
+    try:
+        symbols = parser.parse_file(temp_path, "temp")
+        result = []
+        for sym in symbols:
+            result.append(
+                {
+                    "name": sym["name"],
+                    "type": sym["type"],
+                    "line_start": sym["start_line"],
+                    "line_end": sym["end_line"],
+                    "signature": sym.get("signature", ""),
+                }
+            )
+        return result
+    finally:
+        os.unlink(temp_path)
