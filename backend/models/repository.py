@@ -41,3 +41,8 @@ class Repository(Base):
     file = relationship(
         "File", back_populates="repository", cascade="all, delete-orphan"
     )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Repository(id={self.id}, name={self.name}, status={self.status.value})>"
+        )
