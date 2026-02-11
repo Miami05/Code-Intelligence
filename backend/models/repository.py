@@ -38,7 +38,7 @@ class Repository(Base):
         nullable=False,
         index=True,
     )
-    file = relationship(
+    files = relationship(
         "File", back_populates="repository", cascade="all, delete-orphan"
     )
 

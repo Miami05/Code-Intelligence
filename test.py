@@ -1,0 +1,14 @@
+def simple():
+    return 1
+
+def complex(x, y, z):
+    if x > 0:
+        if y > 0:
+            if z > 0:
+                return x + y + z
+            else:
+                return x + y
+        else:
+            return x
+    else:
+        return 0
