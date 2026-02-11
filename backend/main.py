@@ -2,7 +2,7 @@ from config import settings
 from database import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import repositories_router, upload_router
+from routers import recommendations_router, repositories_router, upload_router
 from routers.search import router as search_router
 from sqlalchemy import text
 
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(upload_router)
 app.include_router(repositories_router)
 app.include_router(search_router)
+app.include_router(recommendations_router)
 
 
 @app.on_event("startup")

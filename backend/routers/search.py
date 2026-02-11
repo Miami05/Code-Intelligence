@@ -1,12 +1,11 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, params
-from sqlalchemy import func, text
-from sqlalchemy.orm import Session
-
 from config import settings
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, params
 from models import Embedding, File, Symbol, embedding
+from sqlalchemy import func, text
+from sqlalchemy.orm import Session
 from utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])

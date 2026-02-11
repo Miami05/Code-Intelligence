@@ -3,6 +3,7 @@ import shutil
 import zipfile
 from typing import Any, cast
 
+from analyzers.complexitiy import analyze_code_quality
 from celery.app.task import Task
 from celery_app import celery_app
 from config import settings
@@ -13,8 +14,6 @@ from models.symbol import SymbolType
 from parsers.assembly_parser import extract_assembly_symbols
 from parsers.c_parser import extract_c_symbols
 from parsers.cobol_parser import extract_cobol_symbols
-
-# Import all language parsers
 from parsers.python_parser import extract_python_symbols
 from tasks.generate_embeddings import (
     generate_embeddings_for_repository as _generate_embeddings_for_repository,
@@ -23,7 +22,6 @@ from tasks.generate_embeddings import (
 generate_embeddings_for_repository = cast(Task, _generate_embeddings_for_repository)
 
 
-# Language configuration
 LANGUAGE_CONFIG = {
     "python": {"extensions": [".py"], "parser": extract_python_symbols, "icon": "🐍"},
     "c": {"extensions": [".c", ".h"], "parser": extract_c_symbols, "icon": "⚡"},
@@ -47,9 +45,10 @@ def get_language_from_extension(filename: str) -> tuple[str, Any, str] | None:
     Returns:
         Tuple of (language_name, parser_function) or None if unsupported
     """
+    lower = filename.lower()
     for lang, config in LANGUAGE_CONFIG.items():
         for ext in config["extensions"]:
-            if filename.endswith(ext):
+            if lower.endswith(ext.lower()):
                 return lang, config["parser"], config["icon"]
     return None
 
@@ -80,7 +79,7 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
         repo.status = RepoStatus.processing
         db.commit()
 
-        extract_dir = f"/tmp/code_intel_{repository_id}"
+        extract_dir = f"/tmp/code_intel_{repository_id}_{self.request.id}"
         os.makedirs(extract_dir, exist_ok=True)
         print(f"📂 Extracting ZIP to: {extract_dir}")
 
@@ -104,10 +103,10 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
             ]
 
             for file in files:
-                lang_info = get_language_from_extension(file)
+                full_path = os.path.join(root, file)
+                lang_info = get_language_from_extension(full_path)
                 if lang_info:
                     language, _, _ = lang_info
-                    full_path = os.path.join(root, file)
                     files_by_language[language].append(full_path)
 
         for lang, files in files_by_language.items():
@@ -134,7 +133,8 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                 try:
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         source = f.read()
-                        line_count = len(source.splitlines())
+                    lines = source.splitlines()
+                    line_count = len(lines)
                     file_record = File(
                         repository_id=repository_id,
                         file_path=relative_path,
@@ -146,13 +146,44 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                     symbols = parser_func(source, relative_path)
                     print(f"  ✓ {relative_path}: {len(symbols)} symbols")
                     for sym in symbols:
+                        start_line = sym.get("line_start", 1)
+                        try:
+                            start_line_int = int(start_line)
+                        except Exception:
+                            start_line_int = 1
+                        start_idx = max(0, start_line_int - 1)
+                        end_line = sym.get("line_end")
+                        if end_line is None:
+                            end_idx = len(lines)
+                        else:
+                            try:
+                                end_idx = int(end_line)
+                            except Exception:
+                                end_idx = len(lines)
+                        end_idx = max(start_idx, min(end_idx, len(lines)))
+                        symbol_code = "\n".join(lines[start_idx:end_line])
+                        quality = analyze_code_quality(symbol_code, language)
+                        raw_type = (sym.get("type") or "").strip()
+                        type_key = raw_type
+                        if type_key == "class":
+                            type_key = "class_"
+                        if type_key not in SymbolType.__members__:
+                            type_key = "function"
                         symbol_record = Symbol(
                             file_id=file_record.id,
-                            name=sym["name"],
-                            type=SymbolType[sym["type"]],
-                            line_start=sym["line_start"],
-                            line_end=sym["line_end"],
+                            name=sym.get("name", "unknown"),
+                            type=SymbolType[type_key],
+                            line_start=start_line_int,
+                            line_end=(
+                                end_idx
+                                if end_idx != len(lines)
+                                else sym.get("line_end")
+                            ),
                             signature=sym.get("signature"),
+                            cyclomatic_complexity=quality["cyclomatic_complexity"],
+                            maintainability_index=quality["maintainability_index"],
+                            lines_of_code=quality["lines_of_code"],
+                            comment_lines=quality["comment_lines"],
                         )
                         db.add(symbol_record)
                         total_symbols += 1
