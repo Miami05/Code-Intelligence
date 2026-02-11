@@ -1,9 +1,9 @@
 import uuid
 
+from database import Base
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
-
-from database import Base
+from sqlalchemy.orm import relationship
 
 
 class File(Base):
@@ -23,6 +23,10 @@ class File(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
+    symbols = relationship(
+        "Symbol", back_populates="file", cascade="all, delete-orphan"
+    )
+    repository = relationship("Repository", back_populates="files")
 
     def __repr__(self) -> str:
         return f"<File(id={self.id}, path={self.file_path}, language={self.language}"
