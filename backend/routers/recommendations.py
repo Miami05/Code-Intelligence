@@ -135,68 +135,54 @@ async def quality_dashboard(
         .scalar()
         or 0
     )
-    complexity_dist = db.query(
-        func.sum(case((subq.c.cyclomatic_complexity <= 10, 1), else_=0)).label(
-            "simple"
-        ),
-        func.sum(
-            case(
-                (
-                    func.and_(
-                        subq.c.cyclomatic_complexity >= 11,
-                        subq.c.cyclomatic_complexity <= 20,
-                    ),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("moderate"),
-        func.sum(
-            case(
-                (
-                    func.and_(
-                        subq.c.cyclomatic_complexity >= 21,
-                        subq.c.cyclomatic_complexity <= 50,
-                    ),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("complex"),
-        func.sum(case((subq.c.cyclomatic_complexity > 50, 1), else_=0)).label(
-            "very complex"
-        ),
-    ).one()
-    maintainability_dist = db.query(
-        func.sum(case((subq.c.maintainability_index >= 85, 1), else_=0)).label(
-            "excellent"
-        ),
-        func.sum(
-            case(
-                (
-                    func.and_(
-                        subq.c.maintainability_index >= 65,
-                        subq.c.maintainability_index < 85,
-                    ),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("good"),
-        func.sum(
-            case(
-                (
-                    func.and_(
-                        subq.c.maintainability_index >= 50,
-                        subq.c.maintainability_index < 65,
-                    ),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("fair"),
-        func.sum(case((subq.c.maintainability_index < 50, 1), else_=0)).label("poor"),
-    ).one()
+    complexity_dist = (
+        db.query(
+            func.sum(case((subq.c.cyclomatic_complexity <= 10, 1), else_=0)).label(
+                "simple"
+            ),
+            func.sum(
+                case(
+                    (subq.c.cyclomatic_complexity.between(11, 20), 1),
+                    else_=0,
+                )
+            ).label("moderate"),
+            func.sum(
+                case(
+                    (subq.c.cyclomatic_complexity.between(21, 50), 1),
+                    else_=0,
+                )
+            ).label("complex"),
+            func.sum(case((subq.c.cyclomatic_complexity > 50, 1), else_=0)).label(
+                "very_complex"
+            ),
+        )
+        .select_from(subq)
+        .one()
+    )
+    maintainability_dist = (
+        db.query(
+            func.sum(case((subq.c.maintainability_index >= 85, 1), else_=0)).label(
+                "excellent"
+            ),
+            func.sum(
+                case(
+                    (subq.c.maintainability_index.between(65, 84.99), 1),
+                    else_=0,
+                )
+            ).label("good"),
+            func.sum(
+                case(
+                    (subq.c.maintainability_index.between(50, 64.99), 1),
+                    else_=0,
+                )
+            ).label("fair"),
+            func.sum(case((subq.c.maintainability_index < 50, 1), else_=0)).label(
+                "poor"
+            ),
+        )
+        .select_from(subq)
+        .one()
+    )
     return {
         "total_symbols": int(total_symbols),
         "average_complexity": round(float(avg_complexity), 2),
