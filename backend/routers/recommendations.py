@@ -129,7 +129,7 @@ async def quality_dashboard(
         or 0
     )
     low_maintainability_count = (
-        db.query(func.count)
+        db.query(func.count())
         .select_from(subq)
         .filter(subq.c.maintainability_index < 65)
         .scalar()
