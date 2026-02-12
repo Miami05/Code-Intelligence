@@ -1,12 +1,11 @@
 import os
 import shutil
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
-
 from config import settings
 from database import get_db
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from models import Repository
+from sqlalchemy.orm import Session
 from tasks.parse_repository import parse_repository_task
 
 router = APIRouter(prefix="/api", tags=["upload"])

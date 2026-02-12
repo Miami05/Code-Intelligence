@@ -1,12 +1,11 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, params
-from sqlalchemy import func, text
-from sqlalchemy.orm import Session
-
 from config import settings
 from database import get_db
-from models import Embedding, File, Symbol, embedding
+from fastapi import APIRouter, Depends, HTTPException, Query
+from models import Embedding, Symbol
+from sqlalchemy import func, text
+from sqlalchemy.orm import Session
 from utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -25,19 +24,16 @@ def semantic_search(
 ):
     """
     Semantic code search using natural language.
-
-    Examples:
-    - "find functions that handle user authentication"
-    - "database connection classes"
-    - "functions that calculate mathematical operations"
     """
     if not settings.enable_embeddings:
         raise HTTPException(status_code=503, detail="Embeddings not enabled")
     if not settings.openai_api_key:
-        raise HTTPException(status_code=503, detail="Open API key not configured")
+        raise HTTPException(status_code=503, detail="OpenAI API key not configured")
+
     print(f"🔍 Semantic search: '{query}'")
     query_embedding = generate_embedding(query)
     threshold = threshold or settings.similarity_threshold
+
     sql_parts = [
         """
         SELECT 
@@ -47,6 +43,8 @@ def semantic_search(
             s.signature,
             s.line_start,
             s.line_end,
+            s.cyclomatic_complexity,
+            s.maintainability_index,
             f.file_path,
             f.repository_id,
             f.language,
@@ -55,24 +53,31 @@ def semantic_search(
         JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
         JOIN files f ON s.file_id = f.id
         WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
-    """
+        """
     ]
+
     params = {
         "query_embedding": f"[{','.join(map(str, query_embedding))}]",
         "threshold": threshold,
         "limit": limit,
     }
+
     if repository_id:
         sql_parts.append("AND f.repository_id = :repository_id")
         params["repository_id"] = repository_id
+
     if language:
         sql_parts.append("AND f.language = :language")
         params["language"] = language
+
     sql_parts.append("ORDER BY e.embedding <=> CAST(:query_embedding AS vector)")
     sql_parts.append("LIMIT :limit")
+
     sql = text("\n".join(sql_parts))
     results = db.execute(sql, params).fetchall()
+
     print(f"  ✓ Found {len(results)} results")
+
     return {
         "query": query,
         "threshold": threshold,
@@ -81,12 +86,12 @@ def semantic_search(
         "total_results": len(results),
         "results": [
             {
-                "symbol_id": row.symbol_id,
+                "symbol_id": str(row.symbol_id),
                 "name": row.name,
                 "type": row.type,
                 "signature": row.signature,
                 "file_path": row.file_path,
-                "repository_id": row.repository_id,
+                "repository_id": str(row.repository_id),
                 "language": row.language,
                 "similarity": round(float(row.similarity), 4),
                 "lines": (
@@ -94,6 +99,8 @@ def semantic_search(
                     if row.line_end
                     else str(row.line_start)
                 ),
+                "cyclomatic_complexity": row.cyclomatic_complexity,
+                "maintainability_index": row.maintainability_index,
             }
             for row in results
         ],
@@ -101,7 +108,7 @@ def semantic_search(
 
 
 @router.get("/similar/{symbol_id}")
-def find_similiar_symbols(
+def find_similar_symbols(
     symbol_id: str,
     limit: int = Query(default=10, le=50),
     threshold: Optional[float] = Query(default=None),
@@ -109,33 +116,34 @@ def find_similiar_symbols(
 ):
     """
     Find symbols similar to a given symbol.
-
-    Useful for:
-    - Finding duplicate/similar code
-    - Code recommendations
-    - Refactoring candidates
     """
     if not settings.enable_embeddings:
-        raise HTTPException(status_code=503, detail=f"Embeddings not enabled")
+        raise HTTPException(status_code=503, detail="Embeddings not enabled")
+
     embedding = db.query(Embedding).filter(Embedding.symbol_id == symbol_id).first()
     if not embedding:
-        raise HTTPException(status_code=503, detail="Symbols embedding not found")
+        raise HTTPException(status_code=404, detail="Symbol embedding not found")
+
     symbol = db.query(Symbol).filter(Symbol.id == symbol_id).first()
-    if symbol is None:
+    if not symbol:
         raise HTTPException(status_code=404, detail="Symbol not found")
-    if threshold is None:
-        threshold = settings.similarity_threshold
+
+    threshold = threshold or settings.similarity_threshold
+
     sql = text(
         """
-    SELECT 
+        SELECT 
             s.id as symbol_id,
             s.name,
             s.type,
             s.signature,
             s.line_start,
             s.line_end,
+            s.cyclomatic_complexity,
+            s.maintainability_index,
             f.file_path,
             f.repository_id,
+            f.language,
             1 - (e.embedding <=> CAST(:query_embedding AS vector)) as similarity
         FROM symbols s
         JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
@@ -144,8 +152,9 @@ def find_similiar_symbols(
           AND 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
         ORDER BY e.embedding <=> CAST(:query_embedding AS vector)
         LIMIT :limit
-               """
+        """
     )
+
     results = db.execute(
         sql,
         {
@@ -155,10 +164,12 @@ def find_similiar_symbols(
             "limit": limit,
         },
     ).fetchall()
+
     print(f"🔗 Found {len(results)} similar symbols to '{symbol.name}'")
+
     return {
         "source_symbol": {
-            "id": symbol.id,
+            "id": str(symbol.id),
             "name": symbol.name,
             "type": symbol.type.value,
             "signature": symbol.signature,
@@ -167,18 +178,21 @@ def find_similiar_symbols(
         "total_results": len(results),
         "similar_symbols": [
             {
-                "symbol_id": row.symbol_id,
+                "symbol_id": str(row.symbol_id),
                 "name": row.name,
                 "type": row.type,
                 "signature": row.signature,
                 "file_path": row.file_path,
-                "repository_id": row.repository_id,
+                "repository_id": str(row.repository_id),
+                "language": row.language,
                 "similarity": round(float(row.similarity), 4),
                 "lines": (
                     f"{row.line_start}-{row.line_end}"
                     if row.line_end
                     else str(row.line_start)
                 ),
+                "cyclomatic_complexity": row.cyclomatic_complexity,
+                "maintainability_index": row.maintainability_index,
             }
             for row in results
         ],
@@ -190,6 +204,7 @@ def embedding_stats(db: Session = Depends(get_db)):
     """Get statistics about embeddings in the system."""
     total_symbols = db.query(func.count(Symbol.id)).scalar()
     total_embeddings = db.query(func.count(Embedding.id)).scalar()
+
     return {
         "total_symbols": total_symbols,
         "total_embeddings": total_embeddings,

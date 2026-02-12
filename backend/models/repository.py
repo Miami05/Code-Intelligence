@@ -2,13 +2,12 @@ import enum
 import uuid
 from datetime import datetime
 
+from database import Base
 from sqlalchemy import DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
-
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class RepoStatus(enum.Enum):
@@ -39,3 +38,11 @@ class Repository(Base):
         nullable=False,
         index=True,
     )
+    files = relationship(
+        "File", back_populates="repository", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Repository(id={self.id}, name={self.name}, status={self.status.value})>"
+        )

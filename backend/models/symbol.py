@@ -2,13 +2,12 @@ import enum
 import uuid
 from typing import Optional
 
+from database import Base
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, Integer, String, Text, func
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
-
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class SymbolType(enum.Enum):
@@ -37,9 +36,14 @@ class Symbol(Base):
     line_start = Column(Integer, nullable=False)
     line_end = Column(Integer)
     signature: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    cyclomatic_complexity = Column(Integer, nullable=True, index=True)
+    maintainability_index = Column(Float, nullable=True)
+    lines_of_code = Column(Integer, nullable=True)
+    comment_lines = Column(Integer, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
+    file = relationship("File", back_populates="symbols")
 
     def __repr__(self) -> str:
         return f"<Symbol(id={self.id}, name={self.name}, type={self.type.value})>"
