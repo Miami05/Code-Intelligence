@@ -2,12 +2,13 @@ import enum
 import uuid
 from datetime import datetime
 
-from database import Base
-from sqlalchemy import DateTime
+from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Integer, String, func
+from sqlalchemy import Integer, String, func, null
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base
 
 
 class RepoStatus(enum.Enum):
@@ -15,6 +16,15 @@ class RepoStatus(enum.Enum):
     processing = "processing"
     completed = "completed"
     failed = "failed"
+
+
+class RepoSource(enum.Enum):
+    """Source of repository"""
+
+    upload = "upload"
+    github = "github"
+    gitlab = "gitlab"
+    bitbucked = "bitbucked"
 
 
 class Repository(Base):
@@ -25,7 +35,17 @@ class Repository(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     upload_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-
+    source: Mapped[RepoSource] = mapped_column(
+        SQLEnum(RepoSource), default=RepoSource.upload, nullable=False
+    )
+    github_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    github_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_branch: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default="main"
+    )
+    github_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    github_last_commit: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[RepoStatus] = mapped_column(
         SQLEnum(RepoStatus), default=RepoStatus.pending, index=True
     )

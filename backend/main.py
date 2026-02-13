@@ -1,10 +1,16 @@
-from config import settings
-from database import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import recommendations_router, repositories_router, upload_router
-from routers.search import router as search_router
 from sqlalchemy import text
+
+from config import settings
+from database import Base, engine
+from routers import (
+    github_router,
+    recommendations_router,
+    repositories_router,
+    upload_router,
+)
+from routers.search import router as search_router
 
 app = FastAPI(
     title=settings.api_tittle,
@@ -25,6 +31,7 @@ app.include_router(upload_router)
 app.include_router(repositories_router)
 app.include_router(search_router)
 app.include_router(recommendations_router)
+app.include_router(github_router)
 
 
 @app.on_event("startup")
