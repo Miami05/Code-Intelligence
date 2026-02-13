@@ -81,9 +81,8 @@ async def import_github_repo(
     db.add(repository)
     db.commit()
     db.refresh(repository)
-    task = celery_app.celery_app.send_task(
-        "tasks.import_github.import_github_repository",
-        args=[str(repository.id), request.url, branch, request.token],
+    task = import_github_repository.delay(
+        str(repository.id), request.url, branch, request.token
     )
     return GitHubImportResponse(
         repository_id=str(repository.id),

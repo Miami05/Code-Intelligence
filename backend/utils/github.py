@@ -24,8 +24,8 @@ def parse_github_url(url: str) -> Optional[Tuple[str, str, str]]:
     Returns:
         (owner, repo, branch) or None if invalid
     """
-    htpp_pattern = r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?(?:/tree/([^/]+))?/?$"
-    match = re.search(htpp_pattern, url)
+    http_pattern = r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?(?:/tree/([^/]+))?/?$"
+    match = re.search(http_pattern, url)
     if match:
         owner = match.group(1)
         repo = match.group(2).replace(".git", "")
@@ -46,7 +46,7 @@ def get_github_metadata(owner: str, repo: str, token: Optional[str] = None) -> d
     Returns:
         Dictionary with stars, last_commit, default_branch, etc.
     """
-    url = f"htpps://api.github.com/repos/{owner}/{repo}"
+    url = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {}
     if token:
         headers["Authorization"] = f"token {token}"
