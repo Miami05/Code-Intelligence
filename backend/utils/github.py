@@ -9,9 +9,8 @@ from typing import Optional, Tuple
 
 import git
 import requests
-from git.exc import GitCommandError
-
 from config import settings
+from git.exc import GitCommandError
 
 
 def parse_github_url(url: str) -> Optional[Tuple[str, str, str]]:
@@ -50,12 +49,12 @@ def get_github_metadata(owner: str, repo: str, token: Optional[str] = None) -> d
     """
     url = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {}
-    
+
     # Use provided token or fall back to settings
     auth_token = token or settings.github_token
     if auth_token:
         headers["Authorization"] = f"token {auth_token}"
-    
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -99,14 +98,14 @@ def clone_respository(
         target_dir = f"/tmp/github_clone_{owner}_{repo}"
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
-    
+
     # Use provided token or fall back to settings
     auth_token = token or settings.github_token
     if auth_token:
         clone_url = f"https://{auth_token}@github.com/{owner}/{repo}.git"
     else:
         clone_url = f"https://github.com/{owner}/{repo}.git"
-    
+
     print(f"📥 Cloning {owner}/{repo} (branch: {branch})...")
     try:
         git.Repo.clone_from(clone_url, target_dir, branch=branch, depth=1)
@@ -135,33 +134,33 @@ def validate_github_url(url: str) -> Tuple[bool, str]:
     parsed = parse_github_url(url)
     if not parsed:
         return False, "Invalid GitHub URL format"
-    
+
     owner, repo, _ = parsed
-    
+
     headers = {}
     if settings.github_token:
         headers["Authorization"] = f"token {settings.github_token}"
-    
+
     try:
         response = requests.get(
-            f"https://api.github.com/repos/{owner}/{repo}",
-            headers=headers,
-            timeout=5
+            f"https://api.github.com/repos/{owner}/{repo}", headers=headers, timeout=5
         )
-        
+
         if response.status_code == 404:
             return False, "Repository not found"
         elif response.status_code == 403:
-            # Check if rate limit or actually private
-            rate_limit = response.headers.get('X-RateLimit-Remaining', '0')
-            if rate_limit == '0':
-                return False, "GitHub API rate limit exceeded. Please add GITHUB_TOKEN to .env"
+            rate_limit = response.headers.get("X-RateLimit-Remaining", "0")
+            if rate_limit == "0":
+                return (
+                    False,
+                    "GitHub API rate limit exceeded. Please add GITHUB_TOKEN to .env",
+                )
             return False, "Private repository (token required)"
         elif response.status_code != 200:
             return False, f"GitHub API error: {response.status_code}"
-        
+
         return True, ""
-        
+
     except requests.Timeout:
         return False, "GitHub API timeout"
     except Exception as e:
