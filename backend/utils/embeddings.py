@@ -22,7 +22,7 @@ def generate_embedding(text: str, model: Optional[str] = None) -> List[float]:
     if not client:
         raise ValueError("OpenAI API key not configured")
     if not text or not text.strip():
-        raise ValueError("Text cannot be emtpy")
+        raise ValueError("Text cannot be empty")
     model = model or settings.openai_model
     try:
         response = client.embeddings.create(input=text, model=model)
@@ -49,15 +49,34 @@ def generate_embeddings_batch(
         raise ValueError("OpenAI API key not configured")
     if not texts:
         return []
-    texts = [t.strip() for t in texts if t and t.strip()]
-    if not texts:
+    
+    # Filter and clean texts
+    valid_texts = []
+    for text in texts:
+        if text and isinstance(text, str) and text.strip():
+            # Truncate to OpenAI's limit (8191 tokens ≈ 32k chars)
+            cleaned = text.strip()[:32000]
+            valid_texts.append(cleaned)
+        else:
+            # Use placeholder for empty texts
+            valid_texts.append("[empty]")
+    
+    if not valid_texts:
+        print("⚠️  No valid texts to embed")
         return []
+    
     model = model or settings.openai_model
     try:
-        response = client.embeddings.create(input=texts, model=model)
-        return [item.embedding for item in response.data]
+        print(f"📊 Generating embeddings for {len(valid_texts)} texts...")
+        response = client.embeddings.create(input=valid_texts, model=model)
+        embeddings = [item.embedding for item in response.data]
+        print(f"✅ Generated {len(embeddings)} embeddings")
+        return embeddings
     except Exception as e:
         print(f"❌ Error generating batch embeddings: {e}")
+        # Log first few texts for debugging
+        if valid_texts:
+            print(f"   Sample texts (first 3): {[t[:100] for t in valid_texts[:3]]}")
         raise
 
 
