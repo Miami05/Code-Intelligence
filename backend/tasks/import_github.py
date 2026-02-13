@@ -1,140 +1,182 @@
 """
-Background task to import GitHub repository
+GitHub repository import task.
+Clones GitHub repos and triggers parsing.
 """
 
 import os
 import shutil
-import uuid
+import subprocess
+import tempfile
+from typing import Optional
 
 from celery_app import celery_app
+from config import settings
 from database import SessionLocal
-from models import Repository
-from models.repository import RepoSource, RepoStatus
-from utils.github import (
-    clone_respository,
-    get_github_metadata,
-    get_latest_commit_sha,
-    parse_github_url,
+from models.repository import Repository, RepoStatus
+from tasks.parse_repository import parse_repository_task
+
+
+def validate_github_url(url: str) -> tuple[str, str]:
+    """
+    Validate GitHub URL and extract owner/repo.
+
+    Returns:
+        Tuple of (owner, repo_name)
+    Raises:
+        ValueError if URL is invalid
+    """
+    if not url.startswith("https://github.com/"):
+        raise ValueError("URL must start with https://github.com/")
+    parts = url.replace("https://github.com/", "").rstrip("/").split("/")
+    if len(parts) < 2:
+        raise ValueError(
+            "Invalid GitHub URL format. Expected: https://github.com/owner/repo"
+        )
+    owner, repo = parts[0], parts[1]
+    if not owner or not repo:
+        raise ValueError("Owner and repository name cannot be empty")
+    return owner, repo
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.import_github.import_github_repository",
+    max_retries=3,
+    default_retry_delay=60,
 )
-
-
-@celery_app.task(bind=True, name="tasks.import_github.import_github_repository")
 def import_github_repository(
     self,
     repository_id: str,
     github_url: str,
-    branch: str | None = None,
-    token: str | None = None,
+    branch: str = "main",
+    token: Optional[str] = None,
 ):
     """
-    Import a repository from GitHub.
+    Clone GitHub repository and import it.
 
     Args:
-        repository_id: UUID of Repository record
+        repository_id: UUID of the repository record
         github_url: GitHub repository URL
-        branch: Branch to clone (optional, defaults to main)
-        token: GitHub personal access token (optional, for private repos)
+        branch: Git branch to clone (default: main)
+        token: Optional GitHub personal access token for private repos
+
+    Returns:
+        Dictionary with import statistics
     """
     db = SessionLocal()
-    repo = None
-    clone_path = None
-    
+    repo: Repository | None = None
+    clone_dir: Optional[str] = None
+    zip_path: Optional[str] = None
+
     try:
-        repo_uuid = uuid.UUID(repository_id)
-        repo = db.query(Repository).filter(Repository.id == repo_uuid).first()
-        
+        repo = db.query(Repository).filter(Repository.id == repository_id).first()
         if not repo:
-            raise Exception(f"Repository {repository_id} not found in database")
-        
-        print(f"🚀 Importing GitHub repository: {github_url}")
+            return {"error": "Repository not found", "repository_id": repository_id}
+
+        print(f"🐙 Cloning GitHub repo: {github_url}")
+        print(f"   Branch: {branch}")
+        print(f"   Repository ID: {repository_id}")
+
         repo.status = RepoStatus.processing
         db.commit()
-        
-        # Parse URL
-        parsed = parse_github_url(github_url)
-        if not parsed:
-            raise Exception("Invalid GitHub URL format")
-        
-        owner, repo_name, default_branch = parsed
-        branch = branch or default_branch
-        
-        print(f"📋 Owner: {owner}, Repo: {repo_name}, Branch: {branch}")
-        
-        # Fetch metadata (non-critical, continues if fails)
+
+        owner, repo_name = validate_github_url(github_url)
+        print(f"   Owner: {owner}, Repo: {repo_name}")
+
+        clone_dir = tempfile.mkdtemp(prefix=f"github_{owner}_{repo_name}_")
+        print(f"   Clone directory: {clone_dir}")
+
+        clone_url = github_url
+        if token:
+            clone_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
+
         try:
-            metadata = get_github_metadata(owner, repo_name, token)
-            print(f"📊 Metadata: {metadata.get('stars', 0)} stars, Language: {metadata.get('language', 'Unknown')}")
+            cmd = [
+                "git",
+                "clone",
+                "--depth=1",
+                "--single-branch",
+                "--branch",
+                branch,
+                clone_url,
+                clone_dir,
+            ]
+
+            print(f"   Executing: git clone --depth=1 --branch {branch} [URL] [DIR]")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout
+                print(f"   ❌ Git clone failed: {error_msg}")
+                raise Exception(f"Git clone failed: {error_msg}")
+
+            print(f"   ✅ Clone successful")
+
+        except subprocess.TimeoutExpired:
+            raise Exception("Git clone timed out after 5 minutes")
         except Exception as e:
-            print(f"⚠️  Failed to fetch GitHub metadata: {e}")
-            print("   Continuing without metadata...")
-            metadata = {}
-        
-        # Clone repository (critical)
-        try:
-            clone_path = clone_respository(owner, repo_name, branch, token)
-            print(f"✅ Cloned to {clone_path}")
-        except Exception as e:
-            raise Exception(f"Failed to clone repository: {e}")
-        
-        # Get commit SHA
-        commit_sha = get_latest_commit_sha(clone_path)
-        
-        # Update repository metadata
-        repo.github_owner = owner
-        repo.github_repo = repo_name
-        repo.github_url = github_url
-        repo.github_branch = branch
-        repo.github_stars = metadata.get("stars", 0)
-        repo.github_last_commit = commit_sha
-        repo.source = RepoSource.github
-        
-        if not repo.name or repo.name == "Unnamed":
-            repo.name = f"{owner}/{repo_name}"
-        
-        db.commit()
-        
-        print("✅ Repository metadata updated")
-        print(f"   Stars: {metadata.get('stars', 0)}")
-        print(f"   Commit: {commit_sha}")
-        
-        # Create archive
-        print("📦 Creating archive from clone...")
-        zip_path = f"/tmp/github_{repository_id}.zip"
-        shutil.make_archive(zip_path.replace(".zip", ""), "zip", clone_path)
-        print(f"✅ Archive created: {zip_path}")
-        
-        # Trigger parsing task
-        print("🔍 Starting code parsing...")
-        celery_app.send_task(
-            "tasks.parse_repository.parse_repository_task",
-            args=[repository_id, zip_path],
+            raise Exception(f"Git clone error: {str(e)}")
+
+        git_dir = os.path.join(clone_dir, ".git")
+        if os.path.exists(git_dir):
+            shutil.rmtree(git_dir)
+            print(f"   Removed .git directory")
+
+        file_count = sum(
+            1
+            for root, dirs, files in os.walk(clone_dir)
+            for file in files
+            if not file.startswith(".")
         )
-        
+        print(f"   Found {file_count} files")
+
+        zip_path = os.path.join(settings.upload_dir, f"{repository_id}_github.zip")
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        print(f"   Creating ZIP archive: {zip_path}")
+        shutil.make_archive(zip_path.replace(".zip", ""), "zip", clone_dir)
+        print(f"   ✅ ZIP created")
+
+        repo.upload_path = zip_path
+        db.commit()
+
+        if clone_dir and os.path.exists(clone_dir):
+            shutil.rmtree(clone_dir)
+            clone_dir = None
+            print(f"   Cleaned up clone directory")
+
+        print(f"   🚀 Triggering parse task...")
+        parse_task = parse_repository_task.delay(repository_id, zip_path)
+
         return {
             "repository_id": repository_id,
+            "github_url": github_url,
+            "branch": branch,
             "owner": owner,
             "repo": repo_name,
-            "branch": branch,
-            "stars": metadata.get("stars", 0),
-            "status": "processing",
+            "status": "parsing",
+            "parse_task_id": parse_task.id,
+            "file_count": file_count,
         }
-        
+
     except Exception as e:
-        error_msg = str(e)
-        print(f"❌ GitHub import failed: {error_msg}")
-        
+        print(f"❌ GitHub import error: {e}")
+
         if repo:
             repo.status = RepoStatus.failed
-            # Store first 500 chars of error message
-            if hasattr(repo, 'error_message'):
-                repo.error_message = error_msg[:500]
             db.commit()
-        
+
+        if "timed out" in str(e).lower() or "network" in str(e).lower():
+            raise self.retry(exc=e)
+
         raise
-        
+
     finally:
-        # Cleanup cloned directory
-        if clone_path and os.path.exists(clone_path):
-            print(f"🧹 Cleaning up {clone_path}")
-            shutil.rmtree(clone_path, ignore_errors=True)
+        if clone_dir and os.path.exists(clone_dir):
+            shutil.rmtree(clone_dir, ignore_errors=True)
+
         db.close()

@@ -27,4 +27,5 @@ celery_app.conf.update(
 celery_app.conf.task_routes = {
     "tasks.parse_repository.*": {"queue": "parsing"},
     "tasks.generate_embeddings.*": {"queue": "embeddings"},
+    "tasks.import_github.*": {"queue": "default"},
 }

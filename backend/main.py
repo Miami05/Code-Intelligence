@@ -1,20 +1,15 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
 from config import settings
 from database import Base, engine
-from routers import (
-    github_router,
-    recommendations_router,
-    repositories_router,
-    upload_router,
-)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from routers import recommendations_router, repositories_router, upload_router
+from routers.github import router as github_router
 from routers.search import router as search_router
+from sqlalchemy import text
 
 app = FastAPI(
     title=settings.api_tittle,
-    description="AI-powered code repository analysis",
+    description="AI-powered code repository analysis with GitHub integration",
     version=settings.api_version,
     debug=settings.api_debug,
 )
@@ -54,6 +49,7 @@ def root():
             "Symbol extraction",
             "Semantic search",
             "Vector embeddings",
+            "GitHub integration",
         ],
         "docs": "/docs",
         "health": "/health",
@@ -75,11 +71,11 @@ def health():
 def get_config():
     """Get non-sensitive config (for debugging)."""
     return {
-        "api_title": settings.api_title,
+        "api_title": settings.api_tittle,
         "api_version": settings.api_version,
         "upload_dir": settings.upload_dir,
         "max_upload_size_mb": settings.max_upload_size_mb,
-        "allowed_extensions": settings.allowed_extensions,
+        "allowed_extensions": settings.allowed_extension,
         "task_time_limit": settings.task_time_limit,
         "embeddings_enabled": settings.enable_embeddings,
         "openai_model": (

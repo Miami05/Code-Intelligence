@@ -1,72 +1,53 @@
-"""add github fields to repository
+"""add github fields to repositories
 
-Revision ID: add_github_fields_002
+Revision ID: add_github_fields
 Revises: add_complexity_001
-Create Date: 2026-02-11
+Create Date: 2026-02-13
+
 """
 
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from typing import Sequence, Union
 
+import sqlalchemy as sa
 from alembic import op
 
-revision = "add_github_fields_002"
-down_revision = "add_complexity_001"
-branch_labels = None
-depends_on = None
+revision: str = "add_github_fields"
+down_revision: Union[str, None] = "add_complexity_001"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade():
-    # Add source enum
-    source_enum = postgresql.ENUM(
-        "upload", "github", "gitlab", "bitbucket", name="reposource"
-    )
-    source_enum.create(op.get_bind(), checkfirst=True)
-
-    # Add new columns
+def upgrade() -> None:
     op.add_column(
-        "repositories",
-        sa.Column(
-            "source",
-            sa.Enum("upload", "github", "gitlab", "bitbucket", name="reposource"),
-            nullable=False,
-            server_default="upload",
-        ),
+        "repositories", sa.Column("github_url", sa.String(length=500), nullable=True)
     )
     op.add_column(
-        "repositories", sa.Column("github_url", sa.String(500), nullable=True)
+        "repositories", sa.Column("github_owner", sa.String(length=255), nullable=True)
     )
     op.add_column(
-        "repositories", sa.Column("github_owner", sa.String(255), nullable=True)
+        "repositories", sa.Column("github_repo", sa.String(length=255), nullable=True)
     )
     op.add_column(
-        "repositories", sa.Column("github_repo", sa.String(255), nullable=True)
-    )
-    op.add_column(
-        "repositories", sa.Column("github_branch", sa.String(255), nullable=True)
+        "repositories", sa.Column("github_branch", sa.String(length=100), nullable=True)
     )
     op.add_column(
         "repositories", sa.Column("github_stars", sa.Integer(), nullable=True)
     )
     op.add_column(
-        "repositories", sa.Column("github_last_commit", sa.String(255), nullable=True)
+        "repositories",
+        sa.Column("github_language", sa.String(length=50), nullable=True),
     )
 
-    # Create indexes
-    op.create_index("idx_repositories_source", "repositories", ["source"])
-    op.create_index("idx_repositories_github_owner", "repositories", ["github_owner"])
+    op.create_index(
+        "ix_repositories_github_url", "repositories", ["github_url"], unique=False
+    )
 
 
-def downgrade():
-    op.drop_index("idx_repositories_github_owner")
-    op.drop_index("idx_repositories_source")
-    op.drop_column("repositories", "github_last_commit")
+def downgrade() -> None:
+    op.drop_index("ix_repositories_github_url", table_name="repositories")
+    op.drop_column("repositories", "github_language")
     op.drop_column("repositories", "github_stars")
     op.drop_column("repositories", "github_branch")
     op.drop_column("repositories", "github_repo")
     op.drop_column("repositories", "github_owner")
     op.drop_column("repositories", "github_url")
-    op.drop_column("repositories", "source")
-
-    # Drop enum
-    sa.Enum(name="reposource").drop(op.get_bind(), checkfirst=True)
