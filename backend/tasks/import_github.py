@@ -38,23 +38,48 @@ def import_github_repository(
     db = SessionLocal()
     repo = None
     clone_path = None
+    
     try:
         repo_uuid = uuid.UUID(repository_id)
         repo = db.query(Repository).filter(Repository.id == repo_uuid).first()
+        
         if not repo:
-            raise Exception("Repository not found")
+            raise Exception(f"Repository {repository_id} not found in database")
+        
         print(f"🚀 Importing GitHub repository: {github_url}")
         repo.status = RepoStatus.processing
         db.commit()
+        
+        # Parse URL
         parsed = parse_github_url(github_url)
         if not parsed:
-            raise Exception("Invalid GitHub URL")
+            raise Exception("Invalid GitHub URL format")
+        
         owner, repo_name, default_branch = parsed
         branch = branch or default_branch
+        
         print(f"📋 Owner: {owner}, Repo: {repo_name}, Branch: {branch}")
-        metadata = get_github_metadata(owner, repo_name, token)
-        clone_path = clone_respository(owner, repo_name, branch, token)
+        
+        # Fetch metadata (non-critical, continues if fails)
+        try:
+            metadata = get_github_metadata(owner, repo_name, token)
+            print(f"📊 Metadata: {metadata.get('stars', 0)} stars, Language: {metadata.get('language', 'Unknown')}")
+        except Exception as e:
+            print(f"⚠️  Failed to fetch GitHub metadata: {e}")
+            print("   Continuing without metadata...")
+            metadata = {}
+        
+        # Clone repository (critical)
+        try:
+            clone_path = clone_respository(owner, repo_name, branch, token)
+            print(f"✅ Cloned to {clone_path}")
+        except Exception as e:
+            raise Exception(f"Failed to clone repository: {e}")
+        
+        # Get commit SHA
         commit_sha = get_latest_commit_sha(clone_path)
+        
+        # Update repository metadata
         repo.github_owner = owner
         repo.github_repo = repo_name
         repo.github_url = github_url
@@ -62,20 +87,29 @@ def import_github_repository(
         repo.github_stars = metadata.get("stars", 0)
         repo.github_last_commit = commit_sha
         repo.source = RepoSource.github
+        
         if not repo.name or repo.name == "Unnamed":
-            repo_name = f"{owner}/{repo_name}"
+            repo.name = f"{owner}/{repo_name}"
+        
         db.commit()
+        
         print("✅ Repository metadata updated")
         print(f"   Stars: {metadata.get('stars', 0)}")
         print(f"   Commit: {commit_sha}")
+        
+        # Create archive
         print("📦 Creating archive from clone...")
         zip_path = f"/tmp/github_{repository_id}.zip"
         shutil.make_archive(zip_path.replace(".zip", ""), "zip", clone_path)
-        print("📦 Creating archive from clone...")
+        print(f"✅ Archive created: {zip_path}")
+        
+        # Trigger parsing task
+        print("🔍 Starting code parsing...")
         celery_app.send_task(
             "tasks.parse_repository.parse_repository_task",
             args=[repository_id, zip_path],
         )
+        
         return {
             "repository_id": repository_id,
             "owner": owner,
@@ -84,13 +118,23 @@ def import_github_repository(
             "stars": metadata.get("stars", 0),
             "status": "processing",
         }
+        
     except Exception as e:
-        print(f"❌ GitHub import failed: {e}")
+        error_msg = str(e)
+        print(f"❌ GitHub import failed: {error_msg}")
+        
         if repo:
             repo.status = RepoStatus.failed
+            # Store first 500 chars of error message
+            if hasattr(repo, 'error_message'):
+                repo.error_message = error_msg[:500]
             db.commit()
+        
         raise
+        
     finally:
+        # Cleanup cloned directory
         if clone_path and os.path.exists(clone_path):
+            print(f"🧹 Cleaning up {clone_path}")
             shutil.rmtree(clone_path, ignore_errors=True)
         db.close()
