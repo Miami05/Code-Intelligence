@@ -50,14 +50,15 @@ async def import_github_repo(
     - **token**: GitHub personal access token (optional, for private repos)
     - **name**: Custom name for repository (optional)
     """
-    is_valid, error = validate_github_url(request.url)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=error)
+    # Parse URL first
     parsed = parse_github_url(request.url)
     if not parsed:
         raise HTTPException(status_code=400, detail="Invalid GitHub URL")
+    
     owner, repo_name, default_branch = parsed
     branch = request.branch or default_branch
+    
+    # Check for duplicates BEFORE validating with GitHub API
     existing = (
         db.query(Repository)
         .filter(Repository.github_owner == owner)
@@ -70,6 +71,12 @@ async def import_github_repo(
             status_code=409,
             detail=f"Repository {owner}/{repo_name} (branch: {branch}) already imported",
         )
+    
+    # Now validate with GitHub API
+    is_valid, error = validate_github_url(request.url)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error)
+    
     repository = Repository(
         name=request.name or f"{owner}/{repo_name}",
         source=RepoSource.github,
