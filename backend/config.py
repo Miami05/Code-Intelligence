@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     openai_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
+    # GitHub settings Sprint 6
+    github_token: Optional[str] = None
+
     # Vector search settings
     enable_embeddings: bool = True
     similarity_threshold: float = 0.7

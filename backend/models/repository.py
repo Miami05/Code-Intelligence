@@ -17,6 +17,12 @@ class RepoStatus(enum.Enum):
     failed = "failed"
 
 
+class RepoSource(enum.Enum):
+    """Source of repository (upload or GitHub import)"""
+    upload = "upload"
+    github = "github"
+
+
 class Repository(Base):
     __tablename__ = "repositories"
 
@@ -25,6 +31,23 @@ class Repository(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     upload_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Source of the repository
+    source: Mapped[RepoSource] = mapped_column(
+        SQLEnum(RepoSource), default=RepoSource.upload, nullable=False, index=True
+    )
+
+    # GitHub-specific fields
+    github_url: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, index=True
+    )
+    github_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_branch: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, default="main"
+    )
+    github_stars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    github_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     status: Mapped[RepoStatus] = mapped_column(
         SQLEnum(RepoStatus), default=RepoStatus.pending, index=True
