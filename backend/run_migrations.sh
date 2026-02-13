@@ -4,7 +4,7 @@ set -e
 echo "🔄 Running database migrations..."
 
 # Wait for database to be ready
-until psql "postgresql://codeuser:codepassword@postgres:5432/codedb" -c '\q' 2>/dev/null; do
+until PGPASSWORD=codepass123 psql -h postgres -U codeuser -d codedb -c '\q' 2>/dev/null; do
   echo "⏳ Waiting for PostgreSQL..."
   sleep 2
 done
