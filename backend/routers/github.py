@@ -6,7 +6,7 @@ from typing import Optional
 
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query
-from models.repository import Repository, RepoStatus
+from models.repository import Repository, RepoStatus, RepoSource
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -142,6 +142,7 @@ async def import_github_repo(
         github_repo=repo_name,
         github_branch=request.branch,
         status=RepoStatus.pending,
+        source=RepoSource.github,  # Set source to github
     )
 
     db.add(repository)
