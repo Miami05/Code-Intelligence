@@ -49,6 +49,11 @@ class GitHubValidateResponse(BaseModel):
     error: Optional[str] = None
 
 
+class GitHubRepositoriesResponse(BaseModel):
+    """Response model for listing repositories."""
+    repositories: list
+
+
 class GitHubRepository(BaseModel):
     """GitHub repository information."""
 
@@ -72,14 +77,14 @@ async def validate_github_repo(url: str = Query(..., description="GitHub reposit
     Validate a GitHub repository URL.
     
     Checks if the URL is properly formatted and the repository exists.
+    Returns 400 error for invalid URLs.
     """
     # Parse URL
     parsed = parse_github_url(url)
     if not parsed:
-        return GitHubValidateResponse(
-            valid=False,
-            url=url,
-            error="Invalid GitHub URL format"
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub URL format"
         )
     
     owner, repo, branch = parsed
@@ -88,10 +93,9 @@ async def validate_github_repo(url: str = Query(..., description="GitHub reposit
     is_valid, error = validate_url_util(url)
     
     if not is_valid:
-        return GitHubValidateResponse(
-            valid=False,
-            url=url,
-            error=error
+        raise HTTPException(
+            status_code=400,
+            detail=error
         )
     
     return GitHubValidateResponse(
@@ -163,7 +167,7 @@ async def import_github_repo(
     )
 
 
-@router.get("/repositories", response_model=list[GitHubRepository])
+@router.get("/repositories", response_model=GitHubRepositoriesResponse)
 async def list_github_repositories(
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
@@ -181,7 +185,7 @@ async def list_github_repositories(
         .all()
     )
 
-    return [
+    repositories = [
         GitHubRepository(
             id=str(repo.id),
             name=repo.name,
@@ -198,6 +202,8 @@ async def list_github_repositories(
         )
         for repo in repos
     ]
+    
+    return GitHubRepositoriesResponse(repositories=repositories)
 
 
 @router.get("/repositories/{repository_id}", response_model=GitHubRepository)
