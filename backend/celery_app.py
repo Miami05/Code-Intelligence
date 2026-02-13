@@ -1,12 +1,15 @@
 from celery import Celery
-
 from config import settings
 
 celery_app = Celery(
     settings.api_tittle.lower().replace(" ", "_"),
     broker=settings.celery_broker,
     backend=settings.celery_backend,
-    include=["tasks.parse_repository", "tasks.generate_embeddings"],
+    include=[
+        "tasks.parse_repository",
+        "tasks.generate_embeddings",
+        "tasks.import_github",
+    ],
 )
 
 celery_app.conf.update(
