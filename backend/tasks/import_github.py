@@ -12,8 +12,9 @@ from typing import Optional
 from celery_app import celery_app
 from config import settings
 from database import SessionLocal
-from models.repository import Repository, RepoStatus
+from models.repository import Repository, RepoStatus, RepoSource
 from tasks.parse_repository import parse_repository_task
+from utils.github import get_github_metadata
 
 
 def validate_github_url(url: str) -> tuple[str, str]:
@@ -78,10 +79,22 @@ def import_github_repository(
         print(f"   Repository ID: {repository_id}")
 
         repo.status = RepoStatus.processing
+        repo.source = RepoSource.github  # Set source to github
         db.commit()
 
         owner, repo_name = validate_github_url(github_url)
         print(f"   Owner: {owner}, Repo: {repo_name}")
+
+        # Fetch GitHub metadata (stars, language, etc.)
+        print(f"   📊 Fetching GitHub metadata...")
+        metadata = get_github_metadata(owner, repo_name, token)
+        if metadata:
+            repo.github_stars = metadata.get("stars", 0)
+            repo.github_language = metadata.get("language", "")
+            print(f"   ✅ Metadata: {repo.github_stars} stars, Language: {repo.github_language}")
+            db.commit()
+        else:
+            print(f"   ⚠️  Could not fetch metadata")
 
         clone_dir = tempfile.mkdtemp(prefix=f"github_{owner}_{repo_name}_")
         print(f"   Clone directory: {clone_dir}")
@@ -89,6 +102,8 @@ def import_github_repository(
         clone_url = github_url
         if token:
             clone_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
+        elif settings.github_token:
+            clone_url = f"https://{settings.github_token}@github.com/{owner}/{repo_name}.git"
 
         try:
             cmd = [
@@ -161,6 +176,8 @@ def import_github_repository(
             "status": "parsing",
             "parse_task_id": parse_task.id,
             "file_count": file_count,
+            "stars": repo.github_stars,
+            "language": repo.github_language,
         }
 
     except Exception as e:
