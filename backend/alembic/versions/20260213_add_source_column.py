@@ -1,7 +1,7 @@
 """add source column
 
-Revision ID: 001
-Revises: 
+Revision ID: 003
+Revises: add_github_fields
 Create Date: 2026-02-13 16:24:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '001'
-down_revision: Union[str, None] = None
+revision: str = '003'
+down_revision: Union[str, None] = 'add_github_fields'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
