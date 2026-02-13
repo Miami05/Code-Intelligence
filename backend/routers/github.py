@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from tasks.import_github import import_github_repository, validate_github_url
+from utils.github import parse_github_url, validate_github_url as validate_url_util
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 
@@ -37,6 +38,17 @@ class GitHubImportResponse(BaseModel):
     message: str
 
 
+class GitHubValidateResponse(BaseModel):
+    """Response model for GitHub URL validation."""
+
+    valid: bool
+    owner: Optional[str] = None
+    repo: Optional[str] = None
+    branch: Optional[str] = None
+    url: str
+    error: Optional[str] = None
+
+
 class GitHubRepository(BaseModel):
     """GitHub repository information."""
 
@@ -52,6 +64,43 @@ class GitHubRepository(BaseModel):
     github_stars: Optional[int] = None
     github_language: Optional[str] = None
     created_at: str
+
+
+@router.post("/validate", response_model=GitHubValidateResponse)
+async def validate_github_repo(url: str = Query(..., description="GitHub repository URL")):
+    """
+    Validate a GitHub repository URL.
+    
+    Checks if the URL is properly formatted and the repository exists.
+    """
+    # Parse URL
+    parsed = parse_github_url(url)
+    if not parsed:
+        return GitHubValidateResponse(
+            valid=False,
+            url=url,
+            error="Invalid GitHub URL format"
+        )
+    
+    owner, repo, branch = parsed
+    
+    # Validate with GitHub API
+    is_valid, error = validate_url_util(url)
+    
+    if not is_valid:
+        return GitHubValidateResponse(
+            valid=False,
+            url=url,
+            error=error
+        )
+    
+    return GitHubValidateResponse(
+        valid=True,
+        owner=owner,
+        repo=repo,
+        branch=branch,
+        url=url
+    )
 
 
 @router.post("/import", response_model=GitHubImportResponse)
