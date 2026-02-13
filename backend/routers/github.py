@@ -5,16 +5,15 @@ GitHub repository import endpoints
 from typing import Optional
 from uuid import UUID
 
+import celery_app
+from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
+from models import Repository
+from models.repository import RepoSource
 from pydantic import BaseModel, HttpUrl
 from pydantic_settings import sources
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
-
-import celery_app
-from database import get_db
-from models import Repository
-from models.repository import RepoSource
 from tasks.import_github import import_github_repository
 from utils import github
 from utils.github import parse_github_url, validate_github_url
@@ -73,7 +72,7 @@ async def import_github_repo(
         )
     repository = Repository(
         name=request.name or f"{owner}/{repo_name}",
-        source=Repository.github,
+        source=RepoSource.github,
         github_url=request.url,
         github_owner=owner,
         github_repo=repo_name,
