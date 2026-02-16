@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FileCode, Copy, Check, ChevronRight, Code2 } from 'lucide-react';
+import { FileCode, Copy, Check, ChevronRight, Code2, AlertCircle } from 'lucide-react';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cobol';
 import { repositoryApi } from '../services/repositoryApi';
-import { RepositorySymbol } from '../types/repository';
+import { RepositorySymbol, FileContent } from '../types/repository';
 
 export default function CodeViewerPage() {
   const { id } = useParams<{ id: string }>();
   const filePath = decodeURIComponent(window.location.pathname.split('/files/')[1] || '');
   
-  const [fileContent, setFileContent] = useState<string>('');
+  const [fileData, setFileData] = useState<FileContent | null>(null);
   const [symbols, setSymbols] = useState<RepositorySymbol[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
 
@@ -26,55 +27,55 @@ export default function CodeViewerPage() {
   }, [id, filePath]);
 
   useEffect(() => {
-    if (fileContent) {
+    if (fileData?.content) {
       Prism.highlightAll();
     }
-  }, [fileContent]);
+  }, [fileData]);
 
   const loadFileData = async () => {
     if (!id) return;
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      // Load file content (mock for now - you'll need to add this endpoint to backend)
-      // For now, we'll fetch symbols and show them
-      const symbolsData = await repositoryApi.getSymbols(id);
+      // Load file content and symbols in parallel
+      const [contentData, symbolsData] = await Promise.all([
+        repositoryApi.getFileContent(id, filePath),
+        repositoryApi.getSymbols(id),
+      ]);
+      
+      setFileData(contentData);
+      
+      // Filter symbols for this file
       const fileSymbols = symbolsData.symbols.filter(
         (s: RepositorySymbol) => s.file_path === filePath
       );
       setSymbols(fileSymbols);
-      
-      // Mock file content - in production, fetch from backend
-      setFileContent(`# Example file content for ${filePath}\n\n# This would be fetched from the backend\n# Symbols found: ${fileSymbols.length}\n\nprint("Hello World")`);
-    } catch (error) {
-      console.error('Failed to load file data:', error);
-      setFileContent('// Error loading file content');
+    } catch (err: any) {
+      console.error('Failed to load file data:', err);
+      setError(err.response?.data?.detail || 'Failed to load file content');
     } finally {
       setLoading(false);
     }
   };
 
-  const getLanguage = (path: string): string => {
-    const ext = path.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'py':
-        return 'python';
-      case 'c':
-      case 'h':
-        return 'c';
-      case 'cob':
-      case 'cbl':
-        return 'cobol';
-      case 'asm':
-      case 's':
-        return 'assembly';
-      default:
-        return 'javascript';
-    }
+  const getLanguage = (lang: string): string => {
+    const langMap: Record<string, string> = {
+      'Python': 'python',
+      'C': 'c',
+      'COBOL': 'cobol',
+      'Assembly': 'asm',
+    };
+    return langMap[lang] || 'javascript';
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(fileContent);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (fileData?.content) {
+      navigator.clipboard.writeText(fileData.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const jumpToLine = (lineNumber: number) => {
@@ -96,8 +97,30 @@ export default function CodeViewerPage() {
     );
   }
 
-  const language = getLanguage(filePath);
-  const lines = fileContent.split('\n');
+  if (error || !fileData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            Failed to Load File
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-6">
+            {error || 'File not found'}
+          </p>
+          <Link
+            to={`/repositories/${id}`}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all inline-block"
+          >
+            Back to Repository
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const language = getLanguage(fileData.language);
+  const lines = fileData.content.split('\n');
   const pathParts = filePath.split('/');
 
   return (
@@ -179,7 +202,7 @@ export default function CodeViewerPage() {
                       {pathParts[pathParts.length - 1]}
                     </h2>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {lines.length} lines • {language}
+                      {lines.length} lines • {fileData.language} • {(fileData.size_bytes / 1024).toFixed(1)} KB
                     </p>
                   </div>
                 </div>

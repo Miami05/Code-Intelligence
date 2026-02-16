@@ -4,9 +4,9 @@ export interface Repository {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   file_count: number;
   symbol_count: number;
-  upload_path?: string;
   created_at: string;
-  // GitHub fields
+  upload_path?: string;
+  source?: 'upload' | 'github';
   github_url?: string;
   github_owner?: string;
   github_repo?: string;
@@ -23,10 +23,20 @@ export interface RepositoryFile {
   created_at: string;
 }
 
+export interface FileContent {
+  repository_id: string;
+  file_path: string;
+  content: string;
+  language: string;
+  line_count: number;
+  size_bytes: number;
+  file_id: string;
+}
+
 export interface RepositorySymbol {
   symbol_id: string;
   name: string;
-  type: 'function' | 'class' | 'method' | 'variable';
+  type: 'function' | 'class' | 'method';
   file_path: string;
   line_start: number;
   line_end: number;
@@ -36,6 +46,7 @@ export interface RepositorySymbol {
 }
 
 export interface QualityDashboard {
+  repository_id: string;
   total_symbols: number;
   average_complexity: number;
   average_maintainability: number;
@@ -58,9 +69,11 @@ export interface QualityDashboard {
 export interface ComplexFunction {
   symbol_id: string;
   name: string;
+  type: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
   complexity: number;
   maintainability: number;
-  lines: number;
-  file_path: string;
   signature?: string;
 }
