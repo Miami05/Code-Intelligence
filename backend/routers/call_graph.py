@@ -54,7 +54,8 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
                 "id": rel.caller_name,
                 "name": rel.caller_name,
                 "file": rel.caller_file,
-                "line": rel.caller_line,
+                # FIXED: CallRelationship doesn't have caller_line, use None or look up from Symbol
+                "line": None, 
             }
         # Add callee node
         if rel.callee_name and rel.callee_name not in nodes_map:
