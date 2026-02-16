@@ -6,6 +6,7 @@ import GitHubImportPage from './pages/GitHubImportPage';
 import RepositoryDetailsPage from './pages/RepositoryDetailsPage';
 import CodeViewerPage from './pages/CodeViewerPage';
 import SearchPage from './pages/SearchPage';
+import CallGraphFullPage from './pages/CallGraphFullPage';
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       {
         path: 'repositories/:id',
         element: <RepositoryDetailsPage />,
+      },
+      {
+        path: 'repositories/:id/call-graph',
+        element: <CallGraphFullPage />,
       },
       {
         path: 'repositories/:id/files/*',
