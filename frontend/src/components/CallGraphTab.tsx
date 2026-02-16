@@ -1,32 +1,10 @@
 /**
- * Call Graph Tab Component
+ * Call Graph Tab Component - Tailwind CSS Version
  * Sprint 7: Visualize function calls and dependencies
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
-  Alert,
-  Tabs,
-  Tab,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Grid,
-  Paper,
-} from '@mui/material';
-import {
-  AccountTree,
-  Delete,
-  Link,
-  Warning,
-  Info,
-} from '@mui/icons-material';
+import { Network, Link2, Trash2, AlertTriangle, Info, Loader2 } from 'lucide-react';
 import callGraphApi, {
   CallGraph,
   DependencyGraph,
@@ -39,37 +17,15 @@ interface CallGraphTabProps {
   repositoryId: string;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-    </div>
-  );
-}
-
 const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tabValue, setTabValue] = useState(0);
+  const [activeView, setActiveView] = useState<'graph' | 'deps' | 'dead' | 'circular'>('graph');
 
   const [callGraph, setCallGraph] = useState<CallGraph | null>(null);
   const [dependencies, setDependencies] = useState<DependencyGraph | null>(null);
   const [deadCode, setDeadCode] = useState<DeadCodeAnalysis | null>(null);
-  const [circularDeps, setCircularDeps] = useState<CircularDependencies | null>(
-    null
-  );
+  const [circularDeps, setCircularDeps] = useState<CircularDependencies | null>(null);
 
   useEffect(() => {
     loadData();
@@ -80,14 +36,12 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
     setError(null);
 
     try {
-      // Load all data in parallel
-      const [callGraphData, depsData, deadCodeData, circularData] =
-        await Promise.all([
-          callGraphApi.getCallGraph(repositoryId),
-          callGraphApi.getDependencies(repositoryId),
-          callGraphApi.getDeadCode(repositoryId),
-          callGraphApi.getCircularDependencies(repositoryId),
-        ]);
+      const [callGraphData, depsData, deadCodeData, circularData] = await Promise.all([
+        callGraphApi.getCallGraph(repositoryId),
+        callGraphApi.getDependencies(repositoryId),
+        callGraphApi.getDeadCode(repositoryId),
+        callGraphApi.getCircularDependencies(repositoryId),
+      ]);
 
       setCallGraph(callGraphData);
       setDependencies(depsData);
@@ -100,330 +54,324 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
     }
   };
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" py={8}>
-        <CircularProgress />
-      </Box>
+      <div className="flex flex-col items-center justify-center py-16">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+        <p className="text-slate-600 dark:text-slate-400">Analyzing call graph...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ my: 2 }}>
-        {error}
-      </Alert>
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+          <p className="text-red-800 dark:text-red-300 font-semibold">{error}</p>
+        </div>
+      </div>
     );
   }
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'error';
       case 'high':
-        return 'error';
+        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'medium':
-        return 'warning';
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       default:
-        return 'info';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
     }
   };
 
   return (
-    <Box>
+    <div>
       {/* Summary Stats */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <AccountTree sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-            <Typography variant="h4">{callGraph?.total_functions || 0}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              Functions
-            </Typography>
-          </Paper>
-        </Grid>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white dark:bg-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600 text-center">
+          <Network className="w-10 h-10 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+            {callGraph?.total_functions || 0}
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Functions</p>
+        </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Link sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
-            <Typography variant="h4">{callGraph?.total_calls || 0}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              Function Calls
-            </Typography>
-          </Paper>
-        </Grid>
+        <div className="bg-white dark:bg-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600 text-center">
+          <Link2 className="w-10 h-10 text-green-600 dark:text-green-400 mx-auto mb-3" />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+            {callGraph?.total_calls || 0}
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Function Calls</p>
+        </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Delete sx={{ fontSize: 40, color: 'error.main', mb: 1 }} />
-            <Typography variant="h4">{deadCode?.total_dead || 0}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              Dead Functions
-            </Typography>
-          </Paper>
-        </Grid>
+        <div className="bg-white dark:bg-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600 text-center">
+          <Trash2 className="w-10 h-10 text-red-600 dark:text-red-400 mx-auto mb-3" />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+            {deadCode?.total_dead || 0}
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Dead Functions</p>
+        </div>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Warning sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
-            <Typography variant="h4">{circularDeps?.total_cycles || 0}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              Circular Dependencies
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+        <div className="bg-white dark:bg-slate-700 rounded-xl p-6 border border-slate-200 dark:border-slate-600 text-center">
+          <AlertTriangle className="w-10 h-10 text-orange-600 dark:text-orange-400 mx-auto mb-3" />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
+            {circularDeps?.total_cycles || 0}
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Circular Dependencies</p>
+        </div>
+      </div>
 
-      {/* Tabs */}
-      <Card>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab icon={<AccountTree />} label="Call Graph" />
-          <Tab icon={<Link />} label="Dependencies" />
-          <Tab icon={<Delete />} label="Dead Code" />
-          <Tab icon={<Warning />} label="Circular Dependencies" />
-        </Tabs>
+      {/* View Tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto">
+        {[
+          { id: 'graph', label: 'Call Graph', icon: Network },
+          { id: 'deps', label: 'Dependencies', icon: Link2 },
+          { id: 'dead', label: 'Dead Code', icon: Trash2 },
+          { id: 'circular', label: 'Circular Deps', icon: AlertTriangle },
+        ].map((view) => {
+          const Icon = view.icon;
+          return (
+            <button
+              key={view.id}
+              onClick={() => setActiveView(view.id as any)}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+                activeView === view.id
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              {view.label}
+            </button>
+          );
+        })}
+      </div>
 
-        <CardContent>
-          {/* Tab 1: Call Graph Visualization */}
-          <TabPanel value={tabValue} index={0}>
-            {callGraph && callGraph.nodes.length > 0 ? (
-              <Box>
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <strong>Interactive Call Graph:</strong> Nodes represent functions,
-                  arrows show who calls whom. Blue = internal, gray = external
-                  libraries.
-                </Alert>
-                <DependencyGraph
-                  nodes={callGraph.nodes.map((n) => ({
-                    id: n.name,
-                    label: n.name,
-                    type: n.is_external ? 'external' : 'internal',
-                    file: n.file,
-                  }))}
-                  edges={callGraph.edges.map((e) => ({
-                    source: e.from,
-                    target: e.to,
-                    label: `Line ${e.line}`,
-                  }))}
-                />
+      {/* View: Call Graph */}
+      {activeView === 'graph' && (
+        <div>
+          {callGraph && callGraph.nodes.length > 0 ? (
+            <>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-900 dark:text-blue-300">
+                    <strong>Interactive Call Graph:</strong> Nodes represent functions, arrows show who calls whom.
+                    Blue = internal, gray = external libraries. Drag nodes to rearrange.
+                  </p>
+                </div>
+              </div>
 
-                {/* Function List */}
-                <Box sx={{ mt: 4 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Function Details ({callGraph.nodes.length})
-                  </Typography>
-                  <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-                    {callGraph.nodes.slice(0, 50).map((node) => (
-                      <ListItem key={node.name} divider>
-                        <ListItemText
-                          primary={
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Typography variant="body1">{node.name}</Typography>
-                              {node.is_external && (
-                                <Chip label="External" size="small" />
-                              )}
-                            </Box>
-                          }
-                          secondary={
-                            <>
-                              {node.file && (
-                                <Typography variant="caption" display="block">
-                                  📄 {node.file}
-                                </Typography>
-                              )}
-                              <Typography variant="caption">
-                                Calls: {node.calls.length} | Called by:{' '}
-                                {node.called_by.length}
-                              </Typography>
-                            </>
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {callGraph.nodes.length > 50 && (
-                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
-                      Showing first 50 of {callGraph.nodes.length} functions
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            ) : (
-              <Alert severity="info">
-                No function calls detected. Make sure your repository contains
-                analyzable code (Python, C, Assembly, or COBOL).
-              </Alert>
-            )}
-          </TabPanel>
+              <DependencyGraph
+                nodes={callGraph.nodes.map((n) => ({
+                  id: n.name,
+                  label: n.name,
+                  type: n.is_external ? 'external' : 'internal',
+                  file: n.file,
+                }))}
+                edges={callGraph.edges.map((e) => ({
+                  source: e.from,
+                  target: e.to,
+                  label: `Line ${e.line}`,
+                }))}
+              />
 
-          {/* Tab 2: File Dependencies */}
-          <TabPanel value={tabValue} index={1}>
-            {dependencies && dependencies.files.length > 0 ? (
-              <Box>
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <strong>File Dependencies:</strong> Shows which files import/include
-                  other files. Supports Python imports, C includes, Assembly includes,
-                  and COBOL COPY statements.
-                </Alert>
-
-                <Typography variant="h6" gutterBottom>
-                  Files ({dependencies.total_files}) • Dependencies (
-                  {dependencies.total_dependencies})
-                </Typography>
-
-                <List sx={{ maxHeight: 500, overflow: 'auto' }}>
-                  {dependencies.files.map((file) => (
-                    <ListItem key={file.file} divider>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body1">{file.file}</Typography>
-                            <Chip label={file.language} size="small" />
-                          </Box>
-                        }
-                        secondary={
-                          <Box sx={{ mt: 1 }}>
-                            {file.imports.length > 0 && (
-                              <Typography variant="caption" display="block">
-                                📥 Imports: {file.imports.join(', ')}
-                              </Typography>
-                            )}
-                            {file.imported_by.length > 0 && (
-                              <Typography variant="caption" display="block">
-                                📤 Imported by: {file.imported_by.length} file(s)
-                              </Typography>
-                            )}
-                            {file.imports.length === 0 &&
-                              file.imported_by.length === 0 && (
-                                <Typography variant="caption" color="textSecondary">
-                                  No dependencies
-                                </Typography>
-                              )}
-                          </Box>
-                        }
-                      />
-                    </ListItem>
+              {/* Function List */}
+              <div className="mt-8">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                  Function Details ({callGraph.nodes.length})
+                </h3>
+                <div className="bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-200 dark:divide-slate-600 max-h-96 overflow-y-auto">
+                  {callGraph.nodes.slice(0, 50).map((node) => (
+                    <div key={node.name} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-semibold text-slate-900 dark:text-white">{node.name}</span>
+                        {node.is_external && (
+                          <span className="px-2 py-1 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 rounded">
+                            External
+                          </span>
+                        )}
+                      </div>
+                      {node.file && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                          📄 {node.file}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Calls: {node.calls.length} | Called by: {node.called_by.length}
+                      </p>
+                    </div>
                   ))}
-                </List>
-              </Box>
-            ) : (
-              <Alert severity="info">
-                No dependencies detected in this repository.
-              </Alert>
-            )}
-          </TabPanel>
+                </div>
+                {callGraph.nodes.length > 50 && (
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                    Showing first 50 of {callGraph.nodes.length} functions
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
+              <Info className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+              <p className="text-blue-900 dark:text-blue-300">
+                No function calls detected. Make sure your repository contains analyzable code (Python, C, Assembly, or COBOL).
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* Tab 3: Dead Code */}
-          <TabPanel value={tabValue} index={2}>
-            {deadCode && deadCode.dead_functions.length > 0 ? (
-              <Box>
-                <Alert severity="warning" sx={{ mb: 3 }}>
-                  <strong>Dead Code Detected:</strong> These functions are never called.
-                  Consider removing them to improve code quality.
-                </Alert>
+      {/* View: Dependencies */}
+      {activeView === 'deps' && (
+        <div>
+          {dependencies && dependencies.files.length > 0 ? (
+            <>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-900 dark:text-blue-300">
+                    <strong>File Dependencies:</strong> Shows which files import/include other files. Supports Python imports,
+                    C includes, Assembly includes, and COBOL COPY statements.
+                  </p>
+                </div>
+              </div>
 
-                <Typography variant="h6" gutterBottom>
-                  Dead Functions ({deadCode.total_dead})
-                </Typography>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                Files ({dependencies.total_files}) • Dependencies ({dependencies.total_dependencies})
+              </h3>
 
-                <List>
-                  {deadCode.dead_functions.map((func, idx) => (
-                    <ListItem key={idx} divider>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body1">{func.name}</Typography>
-                            <Chip
-                              label={func.severity.toUpperCase()}
-                              size="small"
-                              color={getSeverityColor(func.severity) as any}
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <>
-                            <Typography variant="caption" display="block">
-                              📄 {func.file}
-                            </Typography>
-                            <Typography variant="caption">
-                              Makes {func.calls} call(s) but is never called
-                            </Typography>
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            ) : (
-              <Alert severity="success">
-                <Typography variant="body1">
-                  ✅ No dead code detected! All functions are being used.
-                </Typography>
-              </Alert>
-            )}
-          </TabPanel>
+              <div className="bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-200 dark:divide-slate-600 max-h-[500px] overflow-y-auto">
+                {dependencies.files.map((file) => (
+                  <div key={file.file} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-semibold text-slate-900 dark:text-white">{file.file}</span>
+                      <span className="px-2 py-1 text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded">
+                        {file.language}
+                      </span>
+                    </div>
+                    {file.imports.length > 0 && (
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
+                        📥 Imports: {file.imports.join(', ')}
+                      </p>
+                    )}
+                    {file.imported_by.length > 0 && (
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        📤 Imported by: {file.imported_by.length} file(s)
+                      </p>
+                    )}
+                    {file.imports.length === 0 && file.imported_by.length === 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">No dependencies</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
+              <Info className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+              <p className="text-blue-900 dark:text-blue-300">No dependencies detected in this repository.</p>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* Tab 4: Circular Dependencies */}
-          <TabPanel value={tabValue} index={3}>
-            {circularDeps && circularDeps.circular_dependencies.length > 0 ? (
-              <Box>
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  <strong>Circular Dependencies Found:</strong> Functions calling each
-                  other in a cycle. This can lead to infinite recursion and makes code
-                  harder to understand.
-                </Alert>
+      {/* View: Dead Code */}
+      {activeView === 'dead' && (
+        <div>
+          {deadCode && deadCode.dead_functions.length > 0 ? (
+            <>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-yellow-900 dark:text-yellow-300">
+                    <strong>Dead Code Detected:</strong> These functions are never called. Consider removing them to improve
+                    code quality.
+                  </p>
+                </div>
+              </div>
 
-                <Typography variant="h6" gutterBottom>
-                  Circular Dependencies ({circularDeps.total_cycles})
-                </Typography>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                Dead Functions ({deadCode.total_dead})
+              </h3>
 
-                <List>
-                  {circularDeps.circular_dependencies.map((cycle, idx) => (
-                    <ListItem key={idx} divider>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body1">
-                              Cycle {idx + 1} ({cycle.length} functions)
-                            </Typography>
-                            <Chip
-                              label={cycle.severity.toUpperCase()}
-                              size="small"
-                              color={getSeverityColor(cycle.severity) as any}
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <Typography variant="caption">
-                            {cycle.cycle.join(' → ')}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            ) : (
-              <Alert severity="success">
-                <Typography variant="body1">
-                  ✅ No circular dependencies detected! Your call graph is acyclic.
-                </Typography>
-              </Alert>
-            )}
-          </TabPanel>
-        </CardContent>
-      </Card>
-    </Box>
+              <div className="bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-200 dark:divide-slate-600">
+                {deadCode.dead_functions.map((func, idx) => (
+                  <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-semibold text-slate-900 dark:text-white">{func.name}</span>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${getSeverityColor(func.severity)}`}>
+                        {func.severity.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">📄 {func.file}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Makes {func.calls} call(s) but is never called
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <p className="text-green-900 dark:text-green-300 font-semibold">
+                No dead code detected! All functions are being used.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* View: Circular Dependencies */}
+      {activeView === 'circular' && (
+        <div>
+          {circularDeps && circularDeps.circular_dependencies.length > 0 ? (
+            <>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-900 dark:text-red-300">
+                    <strong>Circular Dependencies Found:</strong> Functions calling each other in a cycle. This can lead to
+                    infinite recursion and makes code harder to understand.
+                  </p>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                Circular Dependencies ({circularDeps.total_cycles})
+              </h3>
+
+              <div className="bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-200 dark:divide-slate-600">
+                {circularDeps.circular_dependencies.map((cycle, idx) => (
+                  <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        Cycle {idx + 1} ({cycle.length} functions)
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${getSeverityColor(cycle.severity)}`}>
+                        {cycle.severity.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-mono">
+                      {cycle.cycle.join(' → ')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <p className="text-green-900 dark:text-green-300 font-semibold">
+                No circular dependencies detected! Your call graph is acyclic.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

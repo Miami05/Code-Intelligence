@@ -1,11 +1,10 @@
 /**
- * Dependency Graph Visualization Component
+ * Dependency Graph Visualization Component - Tailwind CSS Version
  * Uses D3.js force-directed graph
  */
 
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { Box, Typography } from '@mui/material';
 
 interface GraphNode {
   id: string;
@@ -117,9 +116,10 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
     node
       .append('circle')
       .attr('r', 20)
-      .attr('fill', (d: any) => (d.type === 'external' ? '#ccc' : '#1976d2'))
+      .attr('fill', (d: any) => (d.type === 'external' ? '#ccc' : '#2563eb'))
       .attr('stroke', '#fff')
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .style('cursor', 'pointer');
 
     // Add labels to nodes
     node
@@ -128,7 +128,8 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
       .attr('font-size', 12)
       .attr('dx', 25)
       .attr('dy', 4)
-      .attr('fill', '#333');
+      .attr('fill', '#334155')
+      .style('pointer-events', 'none');
 
     // Add tooltips
     node.append('title').text((d: any) => `${d.label}\n${d.file || 'External'}`);
@@ -170,32 +171,16 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
 
   if (nodes.length === 0) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height={400}
-      >
-        <Typography variant="body1" color="textSecondary">
-          No graph data available
-        </Typography>
-      </Box>
+      <div className="flex items-center justify-center h-96 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600">
+        <p className="text-slate-600 dark:text-slate-400">No graph data available</p>
+      </div>
     );
   }
 
   return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      sx={{
-        border: '1px solid #ddd',
-        borderRadius: 1,
-        overflow: 'hidden',
-        bgcolor: '#f9f9f9',
-      }}
-    >
-      <svg ref={svgRef} />
-    </Box>
+    <div className="flex justify-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600 p-4">
+      <svg ref={svgRef} className="max-w-full" />
+    </div>
   );
 };
 

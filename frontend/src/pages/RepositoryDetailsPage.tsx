@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Github, FileCode, TrendingUp, Shield, Search } from 'lucide-react';
+import { Github, FileCode, TrendingUp, Shield, Search, Network } from 'lucide-react';
 import { repositoryApi } from '../services/repositoryApi';
 import { Repository } from '../types/repository';
 import { FilesTab } from '../components/FilesTab';
 import { QualityTab } from '../components/QualityTab';
 import { SecurityTab } from '../components/SecurityTab';
+import CallGraphTab from '../components/CallGraphTab';
 
 export default function RepositoryDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [repository, setRepository] = useState<Repository | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'files' | 'quality' | 'security' | 'search'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'quality' | 'security' | 'search' | 'callgraph'>('files');
 
   useEffect(() => {
     if (id) {
@@ -64,6 +65,7 @@ export default function RepositoryDetailsPage() {
     { id: 'files', label: 'Files', icon: FileCode },
     { id: 'quality', label: 'Quality', icon: TrendingUp },
     { id: 'security', label: 'Security', icon: Shield },
+    { id: 'callgraph', label: 'Call Graph', icon: Network },
     { id: 'search', label: 'Search', icon: Search },
   ];
 
@@ -140,14 +142,14 @@ export default function RepositoryDetailsPage() {
         {/* Tabs */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700">
           <div className="border-b border-slate-200 dark:border-slate-700">
-            <div className="flex gap-2 p-2">
+            <div className="flex gap-2 p-2 overflow-x-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 px-6 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                    className={`flex-1 min-w-[140px] px-6 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
                       activeTab === tab.id
                         ? 'bg-blue-600 text-white shadow-lg'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -165,6 +167,7 @@ export default function RepositoryDetailsPage() {
             {activeTab === 'files' && <FilesTab />}
             {activeTab === 'quality' && <QualityTab />}
             {activeTab === 'security' && <SecurityTab />}
+            {activeTab === 'callgraph' && id && <CallGraphTab repositoryId={id} />}
             {activeTab === 'search' && (
               <div className="text-center py-12">
                 <Search className="w-16 h-16 text-slate-400 mx-auto mb-4" />
