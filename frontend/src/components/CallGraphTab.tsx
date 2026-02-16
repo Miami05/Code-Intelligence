@@ -45,7 +45,8 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
     setLoading(true);
     setError(null);
 
-    try {\n      const [callGraphData, depsData, deadCodeData, circularData] =
+    try {
+      const [callGraphData, depsData, deadCodeData, circularData] =
         await Promise.all([
           callGraphApi.getCallGraph(repositoryId),
           callGraphApi.getDependencies(repositoryId),
@@ -203,7 +204,8 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
                   file: n.file,
                 }))}
                 edges={callGraph.edges.map((e) => ({
-                  source: e.from,\n                  target: e.to,
+                  source: e.from,
+                  target: e.to,
                   label: `Line ${e.line}`,
                 }))}
               />
@@ -374,7 +376,8 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
             </>
           ) : (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-              <div className="text-6xl mb-4">✅</div>\n              <p className="text-green-900 dark:text-green-300 font-semibold">
+              <div className="text-6xl mb-4">✅</div>
+              <p className="text-green-900 dark:text-green-300 font-semibold">
                 No dead code detected! All functions are being used.
               </p>
             </div>
