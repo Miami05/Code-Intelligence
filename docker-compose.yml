@@ -28,20 +28,6 @@ services:
       timeout: 3s
       retries: 5
 
-  migrations:
-    build: ./backend
-    container_name: code_intel_migrations
-    command: sh -c "chmod +x /app/run_migrations.sh && /app/run_migrations.sh"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    env_file:
-      - ./backend/.env
-    environment:
-      - DATABASE_URL=postgresql://codeuser:codepass123@postgres:5432/codedb
-    volumes:
-      - ./backend:/app
-
   backend:
     build: ./backend
     container_name: code_intel_backend
@@ -52,8 +38,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
     env_file:
       - ./backend/.env
     environment:
@@ -74,8 +58,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
     env_file:
       - ./backend/.env
     environment:
