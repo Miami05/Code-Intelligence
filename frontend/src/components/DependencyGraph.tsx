@@ -113,7 +113,8 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges, classNa
       .append('g')
       .selectAll('line')
       .data(links)
-      .enter()\n      .append('line')
+      .enter()
+      .append('line')
       .attr('stroke', '#999')
       .attr('stroke-width', 2)
       .attr('marker-end', 'url(#arrowhead)');
