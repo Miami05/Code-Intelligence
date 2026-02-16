@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Network,
   Link2,
@@ -6,6 +7,7 @@ import {
   AlertTriangle,
   Info,
   Loader2,
+  Maximize2,
 } from "lucide-react";
 import callGraphApi, {
   CallGraph,
@@ -43,8 +45,7 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
     setLoading(true);
     setError(null);
 
-    try {
-      const [callGraphData, depsData, deadCodeData, circularData] =
+    try {\n      const [callGraphData, depsData, deadCodeData, circularData] =
         await Promise.all([
           callGraphApi.getCallGraph(repositoryId),
           callGraphApi.getDependencies(repositoryId),
@@ -175,7 +176,7 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
         <div>
           {callGraph && callGraph.nodes.length > 0 ? (
             <>
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-900 dark:text-blue-300">
@@ -184,6 +185,14 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
                     = external libraries. Drag nodes to rearrange.
                   </p>
                 </div>
+                
+                <Link 
+                  to={`/repositories/${repositoryId}/call-graph`}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors flex-shrink-0 shadow-md"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Full Screen
+                </Link>
               </div>
 
               <DependencyGraph
@@ -194,8 +203,7 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
                   file: n.file,
                 }))}
                 edges={callGraph.edges.map((e) => ({
-                  source: e.from,
-                  target: e.to,
+                  source: e.from,\n                  target: e.to,
                   label: `Line ${e.line}`,
                 }))}
               />
@@ -366,8 +374,7 @@ const CallGraphTab: React.FC<CallGraphTabProps> = ({ repositoryId }) => {
             </>
           ) : (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-              <div className="text-6xl mb-4">✅</div>
-              <p className="text-green-900 dark:text-green-300 font-semibold">
+              <div className="text-6xl mb-4">✅</div>\n              <p className="text-green-900 dark:text-green-300 font-semibold">
                 No dead code detected! All functions are being used.
               </p>
             </div>
