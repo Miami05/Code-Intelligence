@@ -5,12 +5,9 @@ Call graph API endpoints.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from analyzers import call_graph
-from analyzers.call_graph import CallGraphAnalyzer
-from analyzers.dead_code import DeadCodeAnalyzer
-from analyzers.dependency_analyzer import DependencyAnalyzer
 from database import get_db
 from models.call_relationship import CallRelationship
 from models.file import File
@@ -25,43 +22,130 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
     """
     Get call graph for repository.
     Shows function call relationships (who calls whom).
+    Reads from pre-computed call_relationships table.
     """
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    files = db.query(File).filter(File.repository_id == repository_id).all()
-    files_data = []
-    for file in files:
-        symbols = db.query(Symbol).filter(Symbol.file_id == file.id).all()
-        try:
-            with open(f"/tmp/code_intel_{repository_id}/{file.file_path}", "r") as f:
-                source_code = f.read()
-        except:
-            source_code = ""
-        files_data.append(
-            {
-                "file_path": file.file_path,
-                "language": file.language,
-                "source_code": source_code,
-                "symbols": [
-                    {
-                        "id": sym.id,
-                        "name": sym.name,
-                        "type": sym.type,
-                        "line_start": sym.line_start,
-                        "line_end": sym.line_end,
-                    }
-                    for sym in symbols
-                ],
+
+    # Query all call relationships for this repository
+    relationships = (
+        db.query(CallRelationship)
+        .filter(CallRelationship.repository_id == repository_id)
+        .all()
+    )
+
+    if not relationships:
+        return {
+            "repository_id": repository_id,
+            "total_functions": 0,
+            "total_calls": 0,
+            "nodes": [],
+            "edges": [],
+            "message": "No function calls detected. Make sure your repository contains analyzable code (Python, C, Assembly, or COBOL).",
+        }
+
+    # Build nodes (unique functions)
+    nodes_map = {}
+    for rel in relationships:
+        # Add caller node
+        if rel.caller_name and rel.caller_name not in nodes_map:
+            nodes_map[rel.caller_name] = {
+                "id": rel.caller_name,
+                "name": rel.caller_name,
+                "file": rel.caller_file,
+                "line": rel.caller_line,
             }
+        # Add callee node
+        if rel.callee_name and rel.callee_name not in nodes_map:
+            nodes_map[rel.callee_name] = {
+                "id": rel.callee_name,
+                "name": rel.callee_name,
+                "file": rel.callee_file or "external",
+                "line": None,
+                "is_external": rel.is_external,
+            }
+
+    nodes = list(nodes_map.values())
+
+    # Build edges (call relationships)
+    edges = [
+        {
+            "from": rel.caller_name,
+            "to": rel.callee_name,
+            "file": rel.caller_file,
+            "line": rel.call_line,
+            "is_external": rel.is_external,
+        }
+        for rel in relationships
+        if rel.caller_name and rel.callee_name
+    ]
+
+    return {
+        "repository_id": repository_id,
+        "total_functions": len(nodes),
+        "total_calls": len(edges),
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+@router.get("/repositories/{repository_id}/stats")
+def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
+    """
+    Get call graph statistics for repository overview cards.
+    """
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # Count unique functions (distinct caller names)
+    unique_functions = (
+        db.query(func.count(func.distinct(CallRelationship.caller_name)))
+        .filter(CallRelationship.repository_id == repository_id)
+        .scalar()
+    )
+
+    # Count total function calls
+    total_calls = (
+        db.query(func.count(CallRelationship.id))
+        .filter(CallRelationship.repository_id == repository_id)
+        .scalar()
+    )
+
+    # Find dead functions (functions that are never called as callee)
+    all_functions = (
+        db.query(func.distinct(CallRelationship.caller_name))
+        .filter(CallRelationship.repository_id == repository_id)
+        .all()
+    )
+    called_functions = (
+        db.query(func.distinct(CallRelationship.callee_name))
+        .filter(
+            CallRelationship.repository_id == repository_id,
+            CallRelationship.is_external == False,
         )
-    analyzer = CallGraphAnalyzer(repository_id)
-    call_graph = analyzer.build_call_graph(files_data)
-    return call_graph
+        .all()
+    )
+
+    all_func_set = {f[0] for f in all_functions if f[0]}
+    called_func_set = {f[0] for f in called_functions if f[0]}
+    dead_functions_count = len(all_func_set - called_func_set)
+
+    # TODO: Implement circular dependency detection
+    circular_deps_count = 0
+
+    return {
+        "repository_id": repository_id,
+        "total_functions": unique_functions or 0,
+        "total_calls": total_calls or 0,
+        "dead_functions": dead_functions_count,
+        "circular_dependencies": circular_deps_count,
+    }
 
 
 @router.get("/repositories/{repository_id}/dependencies")
-def get_dependecies(repository_id: str, db: Session = Depends(get_db)):
+def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
     """
     Get file-level dependency graph.
     Shows which files import/include which other files.
@@ -69,24 +153,16 @@ def get_dependecies(repository_id: str, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    files = db.query(File).filter(File.repository_id == repository_id).all()
-    files_data = []
-    for file in files:
-        try:
-            with open(f"/tmp/code_intel_{repository_id}/{file.file_path}", "r") as f:
-                source_code = f.read()
-        except:
-            source_code = ""
-        files_data.append(
-            {
-                "file_path": file.file_path,
-                "language": file.language,
-                "source_code": source_code,
-            }
-        )
-    analyzer = DependencyAnalyzer(repository_id)
-    dep_graph = analyzer.build_dependency_graph(files_data)
-    return dep_graph
+
+    # TODO: Implement file dependency extraction
+    return {
+        "repository_id": repository_id,
+        "total_files": 0,
+        "total_dependencies": 0,
+        "files": [],
+        "dependencies": [],
+        "message": "File dependency extraction not yet implemented",
+    }
 
 
 @router.get("/repositories/{repository_id}/dead-code")
@@ -97,36 +173,35 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    files = db.query(File).filter(File.repository_id == repository_id).all()
-    files_data = []
-    for file in files_data:
-        symbols = db.query(Symbol).filter(Symbol.file_id == file.id).all()
-        try:
-            with open(f"/tmp/code_intel_{repository_id}/{file.file_path}", "r") as f:
-                source_code = f.read()
-        except:
-            source_code = ""
-        files_data.append(
-            {
-                "file_path": file.file_path,
-                "language": file.language,
-                "source_code": source_code,
-                "symbols": [
-                    {
-                        "id": sym.id,
-                        "name": sym.name,
-                        "type": sym.type.value,
-                        "line_start": sym.line_start,
-                        "line_end": sym.line_end,
-                    }
-                    for sym in symbols
-                ],
-            }
+
+    # Get all functions that call something
+    all_functions = (
+        db.query(CallRelationship.caller_name, CallRelationship.caller_file)
+        .filter(CallRelationship.repository_id == repository_id)
+        .distinct()
+        .all()
+    )
+
+    # Get all functions that are called
+    called_functions_names = (
+        db.query(CallRelationship.callee_name)
+        .filter(
+            CallRelationship.repository_id == repository_id,
+            CallRelationship.is_external == False,
         )
-    graph_analyzer = CallGraphAnalyzer(repository_id)
-    call_graph = graph_analyzer.build_call_graph(files_data)
-    dead_analyzer = DeadCodeAnalyzer(repository_id)
-    dead_functions = dead_analyzer.find_dead_functions(call_graph)
+        .distinct()
+        .all()
+    )
+
+    called_names = {name[0] for name in called_functions_names if name[0]}
+
+    # Dead functions are those that exist but are never called
+    dead_functions = [
+        {"name": func[0], "file": func[1]}
+        for func in all_functions
+        if func[0] and func[0] not in called_names
+    ]
+
     return {
         "repository_id": repository_id,
         "dead_functions": dead_functions,
@@ -142,38 +217,11 @@ def get_circular_dependencies(repository_id: str, db: Session = Depends(get_db))
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    files = db.query(File).filter(File.repository_id == repository_id).all()
-    files_data = []
-    for file in files:
-        symbols = db.query(Symbol).filter(Symbol.file_id == file.id).all()
-        try:
-            with open(f"/tmp/code_intel_{repository_id}/{file.file_path}", "r") as f:
-                source_code = f.read()
-        except:
-            source_code = ""
-        files_data.append(
-            {
-                "file_path": file.file_path,
-                "language": file.language,
-                "source_code": source_code,
-                "symbols": [
-                    {
-                        "id": sym.id,
-                        "name": sym.name,
-                        "type": sym.type.value,
-                        "line_start": sym.line_start,
-                        "line_end": sym.line_end,
-                    }
-                    for sym in symbols
-                ],
-            }
-        )
-    graph_analyzer = CallGraphAnalyzer(repository_id)
-    call_graph = graph_analyzer.build_call_graph(files_data)
-    dead_analyzer = DeadCodeAnalyzer(repository_id)
-    circular_deps = dead_analyzer.find_circular_dependencies(call_graph)
+
+    # TODO: Implement circular dependency detection using DFS
     return {
         "repository_id": repository_id,
-        "circular_dependencies": circular_deps,
-        "total_cycles": len(circular_deps),
+        "circular_dependencies": [],
+        "total_cycles": 0,
+        "message": "Circular dependency detection coming soon",
     }
