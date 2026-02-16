@@ -326,8 +326,8 @@ class CallGraphAnalyzer:
         for file_data in files_data:
             language = file_data["language"]
             file_path = file_data["file_path"]
-            source = file_path["source_code"]
-            symbols = file_path["symbols"]
+            source = file_data["source_code"]  # FIXED: was file_path["source_code"]
+            symbols = file_data["symbols"]      # FIXED: was file_path["symbols"]
             if language == "python":
                 calls = self.analyze_python_file(file_path, source, symbols)
             elif language == "c":
