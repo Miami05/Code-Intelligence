@@ -54,23 +54,15 @@ def extract_call_graph_task(self, repository_id: str):
         
         # Build files_data structure for analyzer
         files_data = []
-        extract_dir = f"/tmp/code_intel_{repository_id}"
         
         for file in files:
+            # Skip files without source code
+            if not file.source:
+                print(f"  ⚠️  No source code for: {file.file_path}")
+                continue
+            
             # Get symbols for this file
             symbols = db.query(Symbol).filter(Symbol.file_id == file.id).all()
-            
-            # Read source code
-            file_full_path = os.path.join(extract_dir, file.file_path)
-            try:
-                with open(file_full_path, "r", encoding="utf-8", errors="ignore") as f:
-                    source_code = f.read()
-            except FileNotFoundError:
-                print(f"  ⚠️  File not found: {file.file_path}")
-                source_code = ""
-            except Exception as e:
-                print(f"  ⚠️  Error reading {file.file_path}: {e}")
-                source_code = ""
             
             # Convert symbols to dict format
             symbols_data = [
@@ -87,9 +79,20 @@ def extract_call_graph_task(self, repository_id: str):
             files_data.append({
                 "file_path": file.file_path,
                 "language": file.language,
-                "source_code": source_code,
+                "source_code": file.source,  # Read from database instead of disk
                 "symbols": symbols_data,
             })
+        
+        if not files_data:
+            print(f"⚠️  No files with source code found")
+            return {
+                "repository_id": repository_id,
+                "files_analyzed": 0,
+                "calls_extracted": 0,
+                "status": "no_source_code"
+            }
+        
+        print(f"  📁 Loaded {len(files_data)} files with source code")
         
         # Initialize analyzer
         analyzer = CallGraphAnalyzer(repository_id)
@@ -106,20 +109,25 @@ def extract_call_graph_task(self, repository_id: str):
                 continue
             
             # Analyze based on language
-            if language == "python":
-                calls = analyzer.analyze_python_file(file_path, source, symbols)
-            elif language == "c":
-                calls = analyzer.analyze_c_file(file_path, source, symbols)
-            elif language == "assembly":
-                calls = analyzer.analyze_assembly_file(file_path, source, symbols)
-            elif language == "cobol":
-                calls = analyzer.analyze_cobol_file(file_path, source, symbols)
-            else:
-                print(f"  ⚠️  Unsupported language for call graph: {language}")
+            try:
+                if language == "python":
+                    calls = analyzer.analyze_python_file(file_path, source, symbols)
+                elif language == "c":
+                    calls = analyzer.analyze_c_file(file_path, source, symbols)
+                elif language == "assembly":
+                    calls = analyzer.analyze_assembly_file(file_path, source, symbols)
+                elif language == "cobol":
+                    calls = analyzer.analyze_cobol_file(file_path, source, symbols)
+                else:
+                    print(f"  ⚠️  Unsupported language for call graph: {language}")
+                    continue
+                
+                if calls:
+                    print(f"  ✓ {file_path}: {len(calls)} calls found")
+                all_calls.extend(calls)
+            except Exception as e:
+                print(f"  ⚠️  Error analyzing {file_path}: {e}")
                 continue
-            
-            print(f"  ✓ {file_path}: {len(calls)} calls found")
-            all_calls.extend(calls)
         
         # Save call relationships to database
         saved_count = 0
@@ -130,6 +138,7 @@ def extract_call_graph_task(self, repository_id: str):
                     caller_symbol_id=call.get("caller_symbol_id"),
                     caller_name=call["caller_name"],
                     caller_file=call["caller_file"],
+                    caller_line=call.get("caller_line"),
                     callee_name=call["callee_name"],
                     callee_file=call.get("callee_file"),
                     callee_symbol_id=call.get("callee_symbol_id"),
@@ -157,6 +166,8 @@ def extract_call_graph_task(self, repository_id: str):
         
     except Exception as e:
         print(f"❌ Error extracting call graph: {e}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
         raise
     
