@@ -1,9 +1,4 @@
-/**
- * Call Graph API Service
- * Sprint 7: Function call relationships and dependencies
- */
-
-import api from './api';
+import { api } from "./api";
 
 export interface CallGraphNode {
   name: string;
@@ -48,7 +43,7 @@ export interface DeadFunction {
   file: string;
   symbol_id: number | null;
   calls: number;
-  severity: 'high' | 'medium' | 'low';
+  severity: "high" | "medium" | "low";
 }
 
 export interface DeadCodeAnalysis {
@@ -60,7 +55,7 @@ export interface DeadCodeAnalysis {
 export interface CircularDependency {
   cycle: string[];
   length: number;
-  severity: 'critical' | 'high' | 'medium';
+  severity: "critical" | "high" | "medium";
 }
 
 export interface CircularDependencies {
@@ -76,7 +71,7 @@ const callGraphApi = {
    */
   getCallGraph: async (repositoryId: string): Promise<CallGraph> => {
     const response = await api.get<CallGraph>(
-      `/api/call-graph/repositories/${repositoryId}/call-graph`
+      `/api/call-graph/repositories/${repositoryId}/call-graph`,
     );
     return response.data;
   },
@@ -87,7 +82,7 @@ const callGraphApi = {
    */
   getDependencies: async (repositoryId: string): Promise<DependencyGraph> => {
     const response = await api.get<DependencyGraph>(
-      `/api/call-graph/repositories/${repositoryId}/dependencies`
+      `/api/call-graph/repositories/${repositoryId}/dependencies`,
     );
     return response.data;
   },
@@ -97,7 +92,7 @@ const callGraphApi = {
    */
   getDeadCode: async (repositoryId: string): Promise<DeadCodeAnalysis> => {
     const response = await api.get<DeadCodeAnalysis>(
-      `/api/call-graph/repositories/${repositoryId}/dead-code`
+      `/api/call-graph/repositories/${repositoryId}/dead-code`,
     );
     return response.data;
   },
@@ -106,10 +101,10 @@ const callGraphApi = {
    * Find circular dependencies
    */
   getCircularDependencies: async (
-    repositoryId: string
+    repositoryId: string,
   ): Promise<CircularDependencies> => {
     const response = await api.get<CircularDependencies>(
-      `/api/call-graph/repositories/${repositoryId}/circular-deps`
+      `/api/call-graph/repositories/${repositoryId}/circular-deps`,
     );
     return response.data;
   },
