@@ -47,6 +47,8 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
 
     # Build nodes (unique functions)
     nodes_map = {}
+    
+    # First pass: Create nodes
     for rel in relationships:
         # Add caller node
         if rel.caller_name and rel.caller_name not in nodes_map:
@@ -54,8 +56,9 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
                 "id": rel.caller_name,
                 "name": rel.caller_name,
                 "file": rel.caller_file,
-                # FIXED: CallRelationship doesn't have caller_line, use None or look up from Symbol
-                "line": None, 
+                "line": None,
+                "calls": [],      # Initialize empty list
+                "called_by": [],  # Initialize empty list
             }
         # Add callee node
         if rel.callee_name and rel.callee_name not in nodes_map:
@@ -65,7 +68,20 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
                 "file": rel.callee_file or "external",
                 "line": None,
                 "is_external": rel.is_external,
+                "calls": [],      # Initialize empty list
+                "called_by": [],  # Initialize empty list
             }
+
+    # Second pass: Populate relationships (calls/called_by)
+    for rel in relationships:
+        if rel.caller_name and rel.callee_name:
+            # Caller calls Callee
+            if rel.caller_name in nodes_map:
+                nodes_map[rel.caller_name]["calls"].append(rel.callee_name)
+            
+            # Callee is called by Caller
+            if rel.callee_name in nodes_map:
+                nodes_map[rel.callee_name]["called_by"].append(rel.caller_name)
 
     nodes = list(nodes_map.values())
 
