@@ -3,7 +3,7 @@
  * Uses D3.js force-directed graph
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 interface GraphNode {
@@ -22,10 +22,33 @@ interface GraphEdge {
 interface DependencyGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  className?: string; // Allow custom styling/dimensions from parent
 }
 
-const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
+const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges, className }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        // Ensure we have some minimum dimensions
+        setDimensions({
+          width: clientWidth || 800,
+          height: clientHeight || 600
+        });
+      }
+    };
+
+    // Initial sizing
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!svgRef.current || nodes.length === 0) return;
@@ -33,8 +56,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
     // Clear previous graph
     d3.select(svgRef.current).selectAll('*').remove();
 
-    const width = 800;
-    const height = 600;
+    const { width, height } = dimensions;
 
     const svg = d3
       .select(svgRef.current)
@@ -65,11 +87,11 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
         d3
           .forceLink(links)
           .id((d: any) => d.id)
-          .distance(100)
+          .distance(150) // Increased distance for better readability
       )
-      .force('charge', d3.forceManyBody().strength(-300))
+      .force('charge', d3.forceManyBody().strength(-400)) // Stronger repulsion
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collide', d3.forceCollide(40));
+      .force('collide', d3.forceCollide(50));
 
     // Add arrow markers
     svg
@@ -77,7 +99,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
       .append('marker')
       .attr('id', 'arrowhead')
       .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 25)
+      .attr('refX', 28) // Adjusted for larger node radius
       .attr('refY', 0)
       .attr('markerWidth', 6)
       .attr('markerHeight', 6)
@@ -91,8 +113,7 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
       .append('g')
       .selectAll('line')
       .data(links)
-      .enter()
-      .append('line')
+      .enter()\n      .append('line')
       .attr('stroke', '#999')
       .attr('stroke-width', 2)
       .attr('marker-end', 'url(#arrowhead)');
@@ -115,8 +136,8 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
     // Add circles to nodes
     node
       .append('circle')
-      .attr('r', 20)
-      .attr('fill', (d: any) => (d.type === 'external' ? '#ccc' : '#2563eb'))
+      .attr('r', 25) // Slightly larger nodes
+      .attr('fill', (d: any) => (d.type === 'external' ? '#e2e8f0' : '#3b82f6'))
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer');
@@ -126,10 +147,11 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
       .append('text')
       .text((d: any) => d.label)
       .attr('font-size', 12)
-      .attr('dx', 25)
+      .attr('dx', 30)
       .attr('dy', 4)
       .attr('fill', '#334155')
-      .style('pointer-events', 'none');
+      .style('pointer-events', 'none')
+      .style('font-weight', '500');
 
     // Add tooltips
     node.append('title').text((d: any) => `${d.label}\n${d.file || 'External'}`);
@@ -167,19 +189,22 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({ nodes, edges }) => {
     return () => {
       simulation.stop();
     };
-  }, [nodes, edges]);
+  }, [nodes, edges, dimensions]); // Re-run when dimensions change
 
   if (nodes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-96 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600">
+      <div className={`flex items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600 ${className || 'h-96'}`}>
         <p className="text-slate-600 dark:text-slate-400">No graph data available</p>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600 p-4">
-      <svg ref={svgRef} className="max-w-full" />
+    <div 
+      ref={containerRef} 
+      className={`flex justify-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-600 overflow-hidden ${className || 'h-[600px]'}`}
+    >
+      <svg ref={svgRef} className="w-full h-full" />
     </div>
   );
 };
