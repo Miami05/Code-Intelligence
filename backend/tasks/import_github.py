@@ -28,14 +28,29 @@ def validate_github_url(url: str) -> tuple[str, str]:
     """
     if not url.startswith("https://github.com/"):
         raise ValueError("URL must start with https://github.com/")
-    parts = url.replace("https://github.com/", "").rstrip("/").split("/")
+    
+    # Remove https://github.com/ and trailing slash
+    url_path = url.replace("https://github.com/", "").rstrip("/")
+    
+    # Remove .git suffix if present
+    if url_path.endswith(".git"):
+        url_path = url_path[:-4]
+    
+    parts = url_path.split("/")
+    
     if len(parts) < 2:
         raise ValueError(
             "Invalid GitHub URL format. Expected: https://github.com/owner/repo"
         )
+    
     owner, repo = parts[0], parts[1]
+    
+    # Additional cleanup - remove any remaining .git suffix
+    repo = repo.rstrip(".git")
+    
     if not owner or not repo:
         raise ValueError("Owner and repository name cannot be empty")
+    
     return owner, repo
 
 
@@ -99,11 +114,13 @@ def import_github_repository(
         clone_dir = tempfile.mkdtemp(prefix=f"github_{owner}_{repo_name}_")
         print(f"   Clone directory: {clone_dir}")
 
-        clone_url = github_url
+        # Build clone URL - always use .git suffix for git command
         if token:
             clone_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
         elif settings.github_token:
             clone_url = f"https://{settings.github_token}@github.com/{owner}/{repo_name}.git"
+        else:
+            clone_url = f"https://github.com/{owner}/{repo_name}.git"
 
         try:
             cmd = [
