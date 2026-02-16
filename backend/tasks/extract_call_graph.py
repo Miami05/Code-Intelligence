@@ -138,11 +138,10 @@ def extract_call_graph_task(self, repository_id: str):
                     caller_symbol_id=call.get("caller_symbol_id"),
                     caller_name=call["caller_name"],
                     caller_file=call["caller_file"],
-                    caller_line=call.get("caller_line"),
                     callee_name=call["callee_name"],
                     callee_file=call.get("callee_file"),
                     callee_symbol_id=call.get("callee_symbol_id"),
-                    call_line=call["call_line"],
+                    call_line=call["call_line"],  # FIXED: Use call_line not caller_line
                     is_external=call["is_external"],
                 )
                 db.add(call_record)
