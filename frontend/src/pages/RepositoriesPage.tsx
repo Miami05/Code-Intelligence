@@ -16,7 +16,8 @@ export default function RepositoriesPage() {
 
   const loadRepositories = async () => {
     try {
-      const data = await repositoryApi.listAll(100, 0);
+      // Fixed: Changed from listAll() to list() - correct method name
+      const data = await repositoryApi.list(100, 0);
       setRepositories(data.repositories);
     } catch (error) {
       console.error('Failed to load repositories:', error);
