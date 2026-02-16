@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -89,6 +91,112 @@ def get_repository_files(
             for file in files
         ],
     }
+
+
+@router.get("/{repository_id}/files/{file_path:path}/content")
+def get_file_content(
+    repository_id: str,
+    file_path: str,
+    db: Session = Depends(get_db),
+):
+    """Get content of a specific file from repository.
+    
+    Args:
+        repository_id: UUID of the repository
+        file_path: Relative path to the file within the repository
+        db: Database session
+        
+    Returns:
+        Dictionary with file content, language, line count, and metadata
+        
+    Raises:
+        HTTPException: 404 if repository or file not found, 500 for read errors
+    """
+    # Get repository
+    repo = db.query(Repository).filter(Repository.id == repository_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+    
+    if not repo.upload_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Repository does not have an upload path"
+        )
+    
+    # Get file metadata from database
+    file_record = (
+        db.query(File)
+        .filter(
+            File.repository_id == repository_id,
+            File.file_path == file_path
+        )
+        .first()
+    )
+    
+    if not file_record:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File '{file_path}' not found in repository"
+        )
+    
+    # Construct full file path
+    full_path = Path(repo.upload_path) / file_path
+    
+    # Security check: ensure the resolved path is within the repository directory
+    try:
+        full_path = full_path.resolve()
+        repo_path = Path(repo.upload_path).resolve()
+        
+        # Check if file is within repository directory (prevents path traversal)
+        if not str(full_path).startswith(str(repo_path)):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: Path traversal detected"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file path: {str(e)}"
+        )
+    
+    # Check if file exists
+    if not full_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"File not found on disk: {file_path}"
+        )
+    
+    if not full_path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Path is not a file: {file_path}"
+        )
+    
+    # Read file content
+    try:
+        # Try UTF-8 first, fallback to latin-1 for binary-like files
+        try:
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            with open(full_path, 'r', encoding='latin-1') as f:
+                content = f.read()
+        
+        return {
+            "repository_id": str(repository_id),
+            "file_path": file_path,
+            "content": content,
+            "language": file_record.language,
+            "line_count": file_record.line_count,
+            "size_bytes": os.path.getsize(full_path),
+            "file_id": str(file_record.id),
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading file: {str(e)}"
+        )
 
 
 @router.get("/{repository_id}/symbols")
