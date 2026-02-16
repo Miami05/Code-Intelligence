@@ -26,36 +26,20 @@ def parse_github_url(url: str) -> Optional[Tuple[str, str, str]]:
     Returns:
         (owner, repo, branch) or None if invalid
     """
-    # Pattern to match GitHub URLs - Fixed: Changed +? to + for greedy matching
-    http_pattern = r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?(?:/tree/([^/\s]+))?/?$"
-    
-    # First try: Match with explicit .git handling
-    # This ensures "So-Long.git" captures "So-Long" not "So-Lon"
-    git_pattern = r"github\.com[:/]([^/]+)/(.+?)\.git(?:/tree/([^/\s]+))?/?$"
-    match = re.search(git_pattern, url)
-    
-    if match:
-        owner = match.group(1)
-        repo = match.group(2)
-        branch = match.group(3) or "main"
-        return owner, repo, branch
-    
-    # Second try: Match without .git suffix
-    no_git_pattern = r"github\.com[:/]([^/]+)/([^/\s.]+)(?:/tree/([^/\s]+))?/?$"
-    match = re.search(no_git_pattern, url)
-    
-    if match:
-        owner = match.group(1)
-        repo = match.group(2)
-        branch = match.group(3) or "main"
-        
-        # Defensively remove .git suffix if somehow still present
-        if repo.endswith(".git"):
-            repo = repo[:-4]
-        
-        return owner, repo, branch
-    
-    return None
+    pattern = r"github\.com[:/]([\w.-]+)/([\w.-]+?)(\.git)?(?:/tree/([\w.-]+))?/?$"
+
+    match = re.search(pattern, url)
+    if not match:
+        return None
+
+    owner = match.group(1)
+    repo = match.group(2)
+    branch = match.group(4) if match.group(4) else "main"
+
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+
+    return owner, repo, branch
 
 
 def get_github_metadata(owner: str, repo: str, token: Optional[str] = None) -> dict:
@@ -70,13 +54,11 @@ def get_github_metadata(owner: str, repo: str, token: Optional[str] = None) -> d
     Returns:
         Dictionary with stars, last_commit, default_branch, etc.
     """
-    # Ensure repo doesn't have .git suffix for API call
     repo = repo.rstrip(".git") if repo.endswith(".git") else repo
-    
+
     url = f"https://api.github.com/repos/{owner}/{repo}"
     headers = {}
 
-    # Use provided token or fall back to settings
     auth_token = token or settings.github_token
     if auth_token:
         headers["Authorization"] = f"token {auth_token}"
@@ -120,15 +102,13 @@ def clone_respository(
     Raises:
         Exception if clone fails
     """
-    # Ensure repo doesn't have .git suffix
     repo = repo.rstrip(".git") if repo.endswith(".git") else repo
-    
+
     if target_dir is None:
         target_dir = f"/tmp/github_clone_{owner}_{repo}"
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
 
-    # Use provided token or fall back to settings
     auth_token = token or settings.github_token
     if auth_token:
         clone_url = f"https://{auth_token}@github.com/{owner}/{repo}.git"
@@ -165,8 +145,7 @@ def validate_github_url(url: str) -> Tuple[bool, str]:
         return False, "Invalid GitHub URL format"
 
     owner, repo, _ = parsed
-    
-    # Ensure repo doesn't have .git suffix for API call
+
     repo = repo.rstrip(".git") if repo.endswith(".git") else repo
 
     headers = {}
