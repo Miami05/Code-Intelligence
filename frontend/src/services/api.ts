@@ -29,5 +29,22 @@ apiInstance.interceptors.response.use(
   },
 );
 
+export const searchAPI = {
+  search: async (query: string) => {
+    const response = await apiInstance.get("/api/search", {
+      params: { q: query },
+    });
+    return response.data;
+  },
+
+  semanticSearch: async (query: string, repositoryId?: string) => {
+    const response = await apiInstance.post("/api/search/semantic", {
+      query,
+      repository_id: repositoryId,
+    });
+    return response.data;
+  },
+};
+
 export const api = apiInstance;
 export default apiInstance;
