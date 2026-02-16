@@ -9,6 +9,7 @@ celery_app = Celery(
         "tasks.parse_repository",
         "tasks.generate_embeddings",
         "tasks.import_github",
+        "tasks.extract_call_graph",
     ],
 )
 
@@ -28,4 +29,5 @@ celery_app.conf.task_routes = {
     "tasks.parse_repository.*": {"queue": "parsing"},
     "tasks.generate_embeddings.*": {"queue": "embeddings"},
     "tasks.import_github.*": {"queue": "default"},
+    "tasks.extract_call_graph.*": {"queue": "default"},
 }
