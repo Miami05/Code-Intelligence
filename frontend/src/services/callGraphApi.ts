@@ -65,10 +65,6 @@ export interface CircularDependencies {
 }
 
 const callGraphApi = {
-  /**
-   * Get call graph for repository
-   * Shows function call relationships
-   */
   getCallGraph: async (repositoryId: string): Promise<CallGraph> => {
     const response = await api.get<CallGraph>(
       `/api/call-graph/repositories/${repositoryId}/call-graph`,
@@ -76,10 +72,6 @@ const callGraphApi = {
     return response.data;
   },
 
-  /**
-   * Get file-level dependencies
-   * Shows import/include relationships
-   */
   getDependencies: async (repositoryId: string): Promise<DependencyGraph> => {
     const response = await api.get<DependencyGraph>(
       `/api/call-graph/repositories/${repositoryId}/dependencies`,
@@ -87,9 +79,6 @@ const callGraphApi = {
     return response.data;
   },
 
-  /**
-   * Find dead code (unused functions)
-   */
   getDeadCode: async (repositoryId: string): Promise<DeadCodeAnalysis> => {
     const response = await api.get<DeadCodeAnalysis>(
       `/api/call-graph/repositories/${repositoryId}/dead-code`,
@@ -97,9 +86,6 @@ const callGraphApi = {
     return response.data;
   },
 
-  /**
-   * Find circular dependencies
-   */
   getCircularDependencies: async (
     repositoryId: string,
   ): Promise<CircularDependencies> => {

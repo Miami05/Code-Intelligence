@@ -1,39 +1,33 @@
 import axios from "axios";
-import { Language, SearchResponse } from "../types/api";
 
-const API_BASE_URL = "http://localhost:8000/api";
-
-export interface SearchParams {
-  query: string;
-  threshold?: number;
-  limit?: number;
-  language?: Language;
-}
-
-export const searchAPI = {
-  semanticSearch: async (params: SearchParams): Promise<SearchResponse> => {
-    const { query, threshold = 0.4, limit = 20, language } = params;
-
-    const requestParams: any = {
-      query,
-      threshold,
-      limit,
-    };
-
-    if (language) {
-      requestParams.language = language;
-    }
-
-    const response = await axios.post<SearchResponse>(
-      `${API_BASE_URL}/search/semantic`,
-      null,
-      {
-        params: requestParams,
-      },
-    );
-    return response.data;
+const apiInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  headers: {
+    "Content-Type": "application/json",
   },
-};
+  timeout: 30000,
+});
 
-// Re-export types for backward compatibility
-export type { SearchResult, SearchResponse } from "../types/api";
+apiInstance.interceptors.request.use(
+  (config) => {
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  },
+);
+
+apiInstance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error("Unauthorized access");
+    }
+    return Promise.reject(error);
+  },
+);
+
+export const api = apiInstance;
+export default apiInstance;
