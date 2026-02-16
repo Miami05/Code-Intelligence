@@ -16,8 +16,10 @@ class CallRelationship(Base):
     __tablename__ = "call_relationships"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    
+    # FIX: Changed from String to UUID to match Repository.id type
     repository_id = Column(
-        String, ForeignKey("repositories.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("repositories.id"), nullable=False, index=True
     )
     
     # FIX: Changed from Integer to UUID to match Symbol.id type
@@ -55,7 +57,7 @@ class CallRelationship(Base):
         """Convert to dictionary for API response."""
         return {
             "id": self.id,
-            "repository_id": self.repository_id,
+            "repository_id": str(self.repository_id),
             "caller_name": self.caller_name,
             "caller_file": self.caller_file,
             "caller_symbol_id": str(self.caller_symbol_id) if self.caller_symbol_id else None,
