@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { Github, FileCode, TrendingUp, Shield, Search } from 'lucide-react';
 import { repositoryApi } from '../services/repositoryApi';
 import { Repository } from '../types/repository';
+import { FilesTab } from '../components/FilesTab';
+import { QualityTab } from '../components/QualityTab';
+import { SecurityTab } from '../components/SecurityTab';
 
 export default function RepositoryDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -159,36 +162,21 @@ export default function RepositoryDetailsPage() {
           </div>
 
           <div className="p-8">
-            {activeTab === 'files' && (
-              <div className="text-center py-12">
-                <FileCode className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <p className="text-lg text-slate-600 dark:text-slate-400">
-                  File browser component will be implemented here
-                </p>
-              </div>
-            )}
-            {activeTab === 'quality' && (
-              <div className="text-center py-12">
-                <TrendingUp className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <p className="text-lg text-slate-600 dark:text-slate-400">
-                  Quality dashboard will be implemented here
-                </p>
-              </div>
-            )}
-            {activeTab === 'security' && (
-              <div className="text-center py-12">
-                <Shield className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <p className="text-lg text-slate-600 dark:text-slate-400">
-                  Security dashboard will be implemented here
-                </p>
-              </div>
-            )}
+            {activeTab === 'files' && <FilesTab />}
+            {activeTab === 'quality' && <QualityTab />}
+            {activeTab === 'security' && <SecurityTab />}
             {activeTab === 'search' && (
               <div className="text-center py-12">
                 <Search className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                <p className="text-lg text-slate-600 dark:text-slate-400">
-                  Repository search will be implemented here
+                <p className="text-lg text-slate-600 dark:text-slate-400 mb-4">
+                  Repository-specific search coming soon
                 </p>
+                <Link
+                  to="/search"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Use global search →
+                </Link>
               </div>
             )}
           </div>
