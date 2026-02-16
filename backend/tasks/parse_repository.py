@@ -140,11 +140,14 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                         source = f.read()
                     lines = source.splitlines()
                     line_count = len(lines)
+                    
+                    # UPDATED: Save source code to database for call graph analysis
                     file_record = File(
                         repository_id=repository_id,
                         file_path=relative_path,
                         language=language,
                         line_count=line_count,
+                        source=source,  # NEW: Store source code
                     )
                     db.add(file_record)
                     db.flush()
