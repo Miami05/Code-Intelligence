@@ -191,11 +191,15 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Get all functions that call something
-    all_functions = (
-        db.query(CallRelationship.caller_name, CallRelationship.caller_file)
+    # Get all functions that call something, and count their calls
+    caller_stats = (
+        db.query(
+            CallRelationship.caller_name, 
+            CallRelationship.caller_file,
+            func.count(CallRelationship.id).label("call_count")
+        )
         .filter(CallRelationship.repository_id == repository_id)
-        .distinct()
+        .group_by(CallRelationship.caller_name, CallRelationship.caller_file)
         .all()
     )
 
@@ -214,9 +218,14 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
 
     # Dead functions are those that exist but are never called
     dead_functions = [
-        {"name": func[0], "file": func[1]}
-        for func in all_functions
-        if func[0] and func[0] not in called_names
+        {
+            "name": stat.caller_name,
+            "file": stat.caller_file,
+            "severity": "medium", # Default severity for dead code
+            "calls": stat.call_count
+        }
+        for stat in caller_stats
+        if stat.caller_name and stat.caller_name not in called_names
     ]
 
     return {
