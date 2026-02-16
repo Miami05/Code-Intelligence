@@ -283,13 +283,14 @@ def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
     total_deps = 0
     
     for file in files:
-        if not file.content:
+        # Use 'source' instead of 'content' and 'file_path' instead of 'path'
+        if not file.source:
             continue
         
         # Extract imports based on language
-        imports = extract_imports_from_file(file.path, file.content, file.language)
-        file_deps[file.path] = {
-            "file": file.path,
+        imports = extract_imports_from_file(file.file_path, file.source, file.language)
+        file_deps[file.file_path] = {
+            "file": file.file_path,
             "language": file.language,
             "imports": imports,
             "imported_by": [],
@@ -297,7 +298,7 @@ def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
         
         # Track reverse dependencies
         for imported in imports:
-            imported_by_map[imported].append(file.path)
+            imported_by_map[imported].append(file.file_path)
             total_deps += 1
     
     # Populate imported_by lists
