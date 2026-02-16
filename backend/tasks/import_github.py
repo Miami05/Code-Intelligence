@@ -32,7 +32,7 @@ def validate_github_url(url: str) -> tuple[str, str]:
     # Remove https://github.com/ and trailing slash
     url_path = url.replace("https://github.com/", "").rstrip("/")
     
-    # Remove .git suffix if present
+    # Remove .git suffix if present (proper way, not rstrip!)
     if url_path.endswith(".git"):
         url_path = url_path[:-4]
     
@@ -45,8 +45,11 @@ def validate_github_url(url: str) -> tuple[str, str]:
     
     owner, repo = parts[0], parts[1]
     
-    # Additional cleanup - remove any remaining .git suffix
-    repo = repo.rstrip(".git")
+    # Additional cleanup - proper suffix removal (not rstrip!)
+    # rstrip(".git") removes ANY char in {'.','g','i','t'}, not the substring!
+    # This caused "So-Long" to become "So-Lon" (removed the 'g')
+    if repo.endswith(".git"):
+        repo = repo[:-4]
     
     if not owner or not repo:
         raise ValueError("Owner and repository name cannot be empty")
