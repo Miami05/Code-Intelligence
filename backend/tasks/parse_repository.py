@@ -18,8 +18,12 @@ from parsers.python_parser import extract_python_symbols
 from tasks.generate_embeddings import (
     generate_embeddings_for_repository as _generate_embeddings_for_repository,
 )
+from tasks.extract_call_graph import (
+    extract_call_graph_task as _extract_call_graph_task,
+)
 
 generate_embeddings_for_repository = cast(Task, _generate_embeddings_for_repository)
+extract_call_graph_task = cast(Task, _extract_call_graph_task)
 
 
 LANGUAGE_CONFIG = {
@@ -79,7 +83,8 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
         repo.status = RepoStatus.processing
         db.commit()
 
-        extract_dir = f"/tmp/code_intel_{repository_id}_{self.request.id}"
+        # UPDATED: Use consistent extract directory name (without task ID)
+        extract_dir = f"/tmp/code_intel_{repository_id}"
         os.makedirs(extract_dir, exist_ok=True)
         print(f"📂 Extracting ZIP to: {extract_dir}")
 
@@ -195,10 +200,19 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
         repo.symbol_count = total_symbols
         repo.status = RepoStatus.completed
         db.commit()
-        if extract_dir:
-            shutil.rmtree(extract_dir, ignore_errors=True)
+        
+        # REMOVED: Don't delete extract_dir yet - needed for call graph extraction
+        # if extract_dir:
+        #     shutil.rmtree(extract_dir, ignore_errors=True)
+        
         print(f"✅ Repository {repository_id} completed")
         print(f"   Files: {total_files}, Symbols: {total_symbols}")
+        
+        # NEW: Trigger call graph extraction
+        print(f"📊 Triggering call graph extraction...")
+        extract_call_graph_task.delay(repository_id)
+        
+        # Trigger embedding generation if enabled
         if settings.enable_embeddings and settings.openai_api_key:
             print(f"🤖 Triggering embedding generation...")
             generate_embeddings_for_repository.delay(repository_id)

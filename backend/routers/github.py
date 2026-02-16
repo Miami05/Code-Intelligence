@@ -6,12 +6,13 @@ from typing import Optional
 
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query
-from models.repository import Repository, RepoStatus, RepoSource
+from models.repository import Repository, RepoSource, RepoStatus
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from tasks.import_github import import_github_repository, validate_github_url
-from utils.github import parse_github_url, validate_github_url as validate_url_util
+from utils.github import parse_github_url
+from utils.github import validate_github_url as validate_url_util
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 
@@ -51,6 +52,7 @@ class GitHubValidateResponse(BaseModel):
 
 class GitHubRepositoriesResponse(BaseModel):
     """Response model for listing repositories."""
+
     repositories: list
 
 
@@ -72,38 +74,28 @@ class GitHubRepository(BaseModel):
 
 
 @router.post("/validate", response_model=GitHubValidateResponse)
-async def validate_github_repo(url: str = Query(..., description="GitHub repository URL")):
+async def validate_github_repo(
+    url: str = Query(..., description="GitHub repository URL"),
+):
     """
     Validate a GitHub repository URL.
-    
+
     Checks if the URL is properly formatted and the repository exists.
     Returns 400 error for invalid URLs.
     """
-    # Parse URL
     parsed = parse_github_url(url)
     if not parsed:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid GitHub URL format"
-        )
-    
+        raise HTTPException(status_code=400, detail="Invalid GitHub URL format")
+
     owner, repo, branch = parsed
-    
-    # Validate with GitHub API
+
     is_valid, error = validate_url_util(url)
-    
+
     if not is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=error
-        )
-    
+        raise HTTPException(status_code=400, detail=error)
+
     return GitHubValidateResponse(
-        valid=True,
-        owner=owner,
-        repo=repo,
-        branch=branch,
-        url=url
+        valid=True, owner=owner, repo=repo, branch=branch, url=url
     )
 
 
@@ -142,7 +134,7 @@ async def import_github_repo(
         github_repo=repo_name,
         github_branch=request.branch,
         status=RepoStatus.pending,
-        source=RepoSource.github,  # Set source to github
+        source=RepoSource.github,
     )
 
     db.add(repository)
@@ -203,7 +195,7 @@ async def list_github_repositories(
         )
         for repo in repos
     ]
-    
+
     return GitHubRepositoriesResponse(repositories=repositories)
 
 
