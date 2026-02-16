@@ -26,9 +26,23 @@ def parse_github_url(url: str) -> Optional[Tuple[str, str, str]]:
     Returns:
         (owner, repo, branch) or None if invalid
     """
-    # Pattern to match GitHub URLs
+    # Pattern to match GitHub URLs - Fixed: Changed +? to + for greedy matching
     http_pattern = r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?(?:/tree/([^/\s]+))?/?$"
-    match = re.search(http_pattern, url)
+    
+    # First try: Match with explicit .git handling
+    # This ensures "So-Long.git" captures "So-Long" not "So-Lon"
+    git_pattern = r"github\.com[:/]([^/]+)/(.+?)\.git(?:/tree/([^/\s]+))?/?$"
+    match = re.search(git_pattern, url)
+    
+    if match:
+        owner = match.group(1)
+        repo = match.group(2)
+        branch = match.group(3) or "main"
+        return owner, repo, branch
+    
+    # Second try: Match without .git suffix
+    no_git_pattern = r"github\.com[:/]([^/]+)/([^/\s.]+)(?:/tree/([^/\s]+))?/?$"
+    match = re.search(no_git_pattern, url)
     
     if match:
         owner = match.group(1)
