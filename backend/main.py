@@ -31,7 +31,7 @@ app.include_router(search_router)
 app.include_router(recommendations_router)
 app.include_router(github_router)
 app.include_router(call_graph_router)
-app.include_router(search_router)
+app.include_router(security_router)  # Fixed: Added security router
 
 
 @app.on_event("startup")
@@ -58,6 +58,7 @@ def root():
             "Call graph analysis",
             "Dead code detection",
             "Dependency tracking",
+            "Security scanning",  # Added security feature
         ],
         "docs": "/docs",
         "health": "/health",
