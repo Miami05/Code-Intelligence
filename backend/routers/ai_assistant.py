@@ -6,10 +6,11 @@ Provides explain, translate, refactor, generate, and autocomplete features.
 import json
 from typing import List, Optional
 
-from config import settings
 from fastapi import APIRouter, HTTPException
 from openai import OpenAI
 from pydantic import BaseModel
+
+from config import settings
 
 router = APIRouter(prefix="/api/ai", tags=["ai-assistant"])
 
@@ -77,7 +78,7 @@ class AutocompleteResponse(BaseModel):
 def _call_openai(
     system_prompt: str,
     user_prompt: str,
-    model: str = "gpt-5-mini",
+    model: str = "gpt-4o-mini",
     temperature: float = 0.3,
     max_tokens: int = 2000,
 ) -> dict:
