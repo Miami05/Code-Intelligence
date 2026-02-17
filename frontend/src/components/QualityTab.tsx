@@ -51,43 +51,58 @@ export function QualityTab() {
     );
   }
 
-  // Prepare chart data
+  // Add safe defaults for complexity_distribution
+  const complexityDist = dashboard.complexity_distribution || {};
+  const maintainabilityDist = dashboard.maintainability_distribution || {};
+
+  // Prepare chart data with safe accessors
   const complexityData = [
     { 
       name: 'Simple (1-10)', 
-      value: dashboard.complexity_distribution['simple (1-10)'], 
+      value: complexityDist['simple (1-10)'] || 0, 
       color: '#10b981',
       label: 'Simple'
     },
     { 
       name: 'Moderate (11-20)', 
-      value: dashboard.complexity_distribution['moderate (11-20)'], 
+      value: complexityDist['moderate (11-20)'] || 0, 
       color: '#f59e0b',
       label: 'Moderate'
     },
     { 
       name: 'Complex (21-50)', 
-      value: dashboard.complexity_distribution['complex (21-50)'], 
+      value: complexityDist['complex (21-50)'] || 0, 
       color: '#f97316',
       label: 'Complex'
     },
     { 
       name: 'Very Complex (50+)', 
-      value: dashboard.complexity_distribution['very_complex (50+)'], 
+      value: complexityDist['very_complex (50+)'] || 0, 
       color: '#ef4444',
       label: 'Very Complex'
     },
   ];
 
   const maintainabilityData = [
-    { name: 'Excellent (85-100)', value: dashboard.maintainability_distribution['excellent (85-100)'], color: '#10b981' },
-    { name: 'Good (65-84)', value: dashboard.maintainability_distribution['good (65-84)'], color: '#f59e0b' },
-    { name: 'Fair (50-64)', value: dashboard.maintainability_distribution['fair (50-64)'], color: '#f97316' },
-    { name: 'Poor (<50)', value: dashboard.maintainability_distribution['poor (<50)'], color: '#ef4444' },
+    { name: 'Excellent (85-100)', value: maintainabilityDist['excellent (85-100)'] || 0, color: '#10b981' },
+    { name: 'Good (65-84)', value: maintainabilityDist['good (65-84)'] || 0, color: '#f59e0b' },
+    { name: 'Fair (50-64)', value: maintainabilityDist['fair (50-64)'] || 0, color: '#f97316' },
+    { name: 'Poor (<50)', value: maintainabilityDist['poor (<50)'] || 0, color: '#ef4444' },
   ];
 
   // Calculate total for percentages
   const totalComplexity = complexityData.reduce((sum, item) => sum + item.value, 0);
+
+  // If no data at all, show message
+  if (totalComplexity === 0 && dashboard.total_symbols === 0) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+        <p className="text-slate-600 dark:text-slate-400 mb-2">No code analysis data available</p>
+        <p className="text-sm text-slate-500">This repository may still be processing or failed to import.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
