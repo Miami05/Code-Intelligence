@@ -43,7 +43,6 @@ class SecurityScanner:
             "Python SQL f-string",
             ["python"],
         ),
-        # C-specific patterns (must have actual SQL keywords)
         (
             r"sprintf\s*\([^)]*\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\b",
             "C SQL injection via sprintf",
@@ -54,7 +53,6 @@ class SecurityScanner:
             "C SQL injection via strcat",
             ["c", "cpp"],
         ),
-        # COBOL patterns (enhanced)
         (r"EXEC\s+SQL.*:(\w+)", "COBOL dynamic SQL variable", ["cobol"]),
         (
             r"STRING\s+.*\bSELECT\b.*INTO",
@@ -69,7 +67,7 @@ class SecurityScanner:
     ]
 
     SECRET_PATTERNS = [
-        (r'["\']([A-Za-z0-9_-]{40,})["\']', "API Key", []),  # Increased to 40 chars
+        (r'["\']([A-Za-z0-9_-]{40,})["\']', "API Key", []),
         (r'api[_-]?key\s*=\s*["\']([^"\']+)["\']', "API Key assignment", []),
         (r'password\s*=\s*["\']([^"\']{8,})["\']', "Hardcoded password", []),
         (r'passwd\s*=\s*["\']([^"\']{8,})["\']', "Hardcoded password", []),
@@ -84,7 +82,6 @@ class SecurityScanner:
         (r"-----BEGIN (RSA |DSA )?PRIVATE KEY-----", "Private key", []),
         (r'token\s*=\s*["\']([A-Za-z0-9_-]{30,})["\']', "Hardcoded token", []),
         (r"bearer\s+[A-Za-z0-9_-]{30,}", "Bearer token", []),
-        # COBOL-specific secrets
         (
             r"(PASSWORD|PASSWD|PWD)\s+PIC\s+X.*VALUE\s+['\"]([^'\"]{8,})",
             "COBOL hardcoded password",
@@ -95,7 +92,6 @@ class SecurityScanner:
             "COBOL hardcoded API key",
             ["cobol"],
         ),
-        # Assembly-specific secrets (in .data section)
         (
             r"(password|passwd|pwd).*db\s+['\"]([^'\"]{8,})",
             "Assembly hardcoded password in .data",
@@ -124,9 +120,11 @@ class SecurityScanner:
         (r"eval\s*\(", "eval() with dynamic code", ["python", "javascript"]),
         (r"system\s*\(", "C system() call", ["c", "cpp"]),
         (r"popen\s*\(", "C popen() call", ["c", "cpp"]),
-        # Only flag execve with user-controlled input
-        (r"execve?\s*\([^)]*argv", "execve() with potentially unsafe input", ["c", "cpp"]),
-        # COBOL command injection
+        (
+            r"execve?\s*\([^)]*argv",
+            "execve() with potentially unsafe input",
+            ["c", "cpp"],
+        ),
         (
             r"CALL\s+['\"]SYSTEM['\"]\s+USING",
             "COBOL CALL SYSTEM with parameter",
@@ -137,7 +135,6 @@ class SecurityScanner:
             "COBOL execute command with parameter",
             ["cobol"],
         ),
-        # Assembly syscalls (potentially unsafe)
         (
             r"int\s+0x80.*eax.*0xb",
             "Assembly execve syscall (potential command injection)",
@@ -151,9 +148,8 @@ class SecurityScanner:
     ]
 
     PATH_TRAVERSAL_PATTERNS = [
-        # Exclude C/C++ include paths - only flag actual file operations
         (
-            r'(fopen|open|fread|fwrite|remove|unlink)\s*\([^)]*\.\.',
+            r"(fopen|open|fread|fwrite|remove|unlink)\s*\([^)]*\.\.",
             "File operation with path traversal (../)",
             ["c", "cpp"],
         ),
@@ -162,7 +158,6 @@ class SecurityScanner:
             "File open with concatenation (potential path traversal)",
             ["python"],
         ),
-        # COBOL file operations
         (
             r"(OPEN|READ|WRITE)\s+(INPUT|OUTPUT)\s+\w+.*\.\.",
             "COBOL file operation with path traversal (../)",
@@ -173,7 +168,6 @@ class SecurityScanner:
             "COBOL dynamic file path (potential traversal)",
             ["cobol"],
         ),
-        # Assembly file operations
         (
             r"int\s+0x80.*eax.*(0x5|0x3|0x4).*ebx.*\.\.",
             "Assembly file syscall with path traversal",
@@ -182,7 +176,6 @@ class SecurityScanner:
     ]
 
     BUFFER_OVERFLOW_PATTERNS = [
-        # C/C++ buffer overflow risks
         (r"gets\s*\(", "Unsafe gets() - buffer overflow risk", ["c", "cpp"]),
         (r"strcpy\s*\(", "Unsafe strcpy() - no bounds checking", ["c", "cpp"]),
         (r"strcat\s*\(", "Unsafe strcat() - no bounds checking", ["c", "cpp"]),
@@ -192,7 +185,6 @@ class SecurityScanner:
             "Unsafe scanf with %s - buffer overflow risk",
             ["c", "cpp"],
         ),
-        # Assembly buffer overflow risks
         (
             r"rep\s+movs[bwd]",
             "Assembly unchecked memory copy (rep movs)",
@@ -203,7 +195,6 @@ class SecurityScanner:
             "Assembly manual stack manipulation (potential overflow)",
             ["assembly"],
         ),
-        # COBOL buffer issues
         (
             r"STRING\s+.*DELIMITED.*INTO\s+\w+\s+ON\s+OVERFLOW",
             "COBOL STRING operation without overflow handling",
@@ -212,7 +203,6 @@ class SecurityScanner:
     ]
 
     XSS_PATTERNS = [
-        # Only flag actual HTML rendering contexts, not Python __repr__ methods
         (
             r"(render_template|render_to_string)\s*\(.*\{.*\}",
             "Template rendering with unsafe variables",
@@ -328,20 +318,15 @@ class SecurityScanner:
         lines = content.split("\n")
         language_lower = language.lower() if language else ""
 
-        # Check each vulnerability category
         issues.extend(self._check_sql_injection(lines, file_path, language_lower))
         issues.extend(self._check_hardcoded_secrets(lines, file_path, language_lower))
-        issues.extend(
-            self._check_command_injection(lines, file_path, language_lower)
-        )
+        issues.extend(self._check_command_injection(lines, file_path, language_lower))
         issues.extend(self._check_path_traversal(lines, file_path, language_lower))
         issues.extend(self._check_buffer_overflow(lines, file_path, language_lower))
 
-        # Only check XSS for web-related languages
         if language_lower in ["python", "javascript", "typescript"]:
             issues.extend(self._check_xss(lines, file_path, language_lower))
 
-        # Deduplicate issues
         return self._deduplicate_issues(issues)
 
     def _is_c_preprocessor_directive(self, line: str) -> bool:
@@ -349,9 +334,7 @@ class SecurityScanner:
         Check if line is a C/C++ preprocessor directive.
         These are not security vulnerabilities - they're compiler directives.
         """
-        return any(
-            re.match(pattern, line) for pattern in self.C_PREPROCESSOR_PATTERNS
-        )
+        return any(re.match(pattern, line) for pattern in self.C_PREPROCESSOR_PATTERNS)
 
     def _is_assembly_directive(self, line: str) -> bool:
         """Check if line is an Assembly directive or comment (not code)."""
@@ -380,7 +363,6 @@ class SecurityScanner:
         Returns:
             True if pattern should be checked
         """
-        # If pattern_languages is empty, apply to all languages
         if not pattern_languages:
             return True
         return current_language in pattern_languages
@@ -391,7 +373,6 @@ class SecurityScanner:
         """Detect SQL injection vulnerabilities with language context"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            # Skip language-specific directives/comments
             if language in ["c", "cpp"] and self._is_c_preprocessor_directive(line):
                 continue
             if language == "assembly" and self._is_assembly_directive(line):
@@ -399,12 +380,10 @@ class SecurityScanner:
             if language == "cobol" and self._is_cobol_comment(line):
                 continue
 
-            # Skip SQLAlchemy ORM code (it's safe)
             if self._is_sqlalchemy_safe(line):
                 continue
 
             for pattern, description, languages in self.SQL_INJECTION_PATTERNS:
-                # Skip if pattern doesn't apply to this language
                 if not self._should_check_pattern(languages, language):
                     continue
 
