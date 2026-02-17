@@ -55,6 +55,10 @@ export function QualityTab() {
   const complexityDist = dashboard.complexity_distribution || {};
   const maintainabilityDist = dashboard.maintainability_distribution || {};
 
+  // 🔧 FIX: Safe defaults for average metrics to prevent toFixed() crash
+  const avgComplexity = dashboard.average_complexity ?? 0;
+  const avgMaintainability = dashboard.average_maintainability ?? 0;
+
   // Prepare chart data with safe accessors
   const complexityData = [
     { 
@@ -117,13 +121,13 @@ export function QualityTab() {
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Avg Complexity</p>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">
-            {dashboard.average_complexity.toFixed(1)}
+            {avgComplexity.toFixed(1)}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Avg Maintainability</p>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">
-            {dashboard.average_maintainability.toFixed(1)}
+            {avgMaintainability.toFixed(1)}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
