@@ -55,10 +55,6 @@ export function QualityTab() {
   const complexityDist = dashboard.complexity_distribution || {};
   const maintainabilityDist = dashboard.maintainability_distribution || {};
 
-  // 🔧 FIX: Safe defaults for average metrics to prevent toFixed() crash
-  const avgComplexity = dashboard.average_complexity ?? 0;
-  const avgMaintainability = dashboard.average_maintainability ?? 0;
-
   // Prepare chart data with safe accessors
   const complexityData = [
     { 
