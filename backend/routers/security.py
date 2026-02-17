@@ -11,14 +11,14 @@ from models.repository import Repository
 from models.vulnerability import Vulnerability
 from services.security_scanner import SecurityScanner
 from sqlalchemy import func
-from sqlalchemy.orm import Session, query
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/security", tags=["security"])
 
 
 @router.post("/repositories/{repository_id}/scan")
 def scan_repository_security(
-    repository_id: str, background_task: BackgroundTasks, db: Session = Depends(get_db)
+    repository_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
     """
     Trigger security scan for a repository.
@@ -31,7 +31,7 @@ def scan_repository_security(
         Vulnerability.repository_id == repository_id
     ).delete()
     db.commit()
-    background_task.add_task(_perform_security_scan, repository_id, db)
+    background_tasks.add_task(_perform_security_scan, repository_id, db)
     return {
         "status": "scanning",
         "message": "Security scan started",
@@ -86,14 +86,18 @@ def get_vulnerabilities(
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    query = db.query(Vulnerability).filter(Vulnerability.repository_id == repository_id)
+    
+    # Fixed: Renamed 'query' to 'vuln_query' to avoid shadowing sqlalchemy.orm.query
+    vuln_query = db.query(Vulnerability).filter(Vulnerability.repository_id == repository_id)
     if severity is not None:
-        query = query.filter(Vulnerability.severity == severity)
+        vuln_query = vuln_query.filter(Vulnerability.severity == severity)
     if type is not None:
-        query = query.filter(Vulnerability.type == type)
-    vulnerabilities = query.order_by(
+        vuln_query = vuln_query.filter(Vulnerability.type == type)
+    
+    vulnerabilities = vuln_query.order_by(
         Vulnerability.severity.desc(), Vulnerability.created_at.desc()
     ).all()
+    
     return {
         "repository_id": repository_id,
         "total_vulnerabilities": len(vulnerabilities),
@@ -125,8 +129,10 @@ def get_security_stats(repository_id: str, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == repository_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
+    
+    # Fixed: Changed func.concat to func.count
     critical_count = (
-        db.query(func.concat(Vulnerability.id))
+        db.query(func.count(Vulnerability.id))
         .filter(
             Vulnerability.repository_id == repository_id,
             Vulnerability.severity == "critical",
