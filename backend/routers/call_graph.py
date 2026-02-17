@@ -102,7 +102,6 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Query all call relationships for this repository
     relationships = (
         db.query(CallRelationship)
         .filter(CallRelationship.repository_id == repository_id)
