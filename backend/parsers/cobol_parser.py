@@ -124,6 +124,7 @@ class CobolParser:
         symbols: List[Dict],
     ):
         """Recursively extract COBOL symbols using tree-sitter"""
+        # 🔧 FIX: Extract program_id
         if node.type == "program_id":
             name_node = node.named_children[0] if node.named_children else None
             if name_node:
@@ -132,7 +133,7 @@ class CobolParser:
                 )
                 symbols.append(
                     {
-                        "symbols": str(uuid.uuid4()),
+                        "symbol_id": str(uuid.uuid4()),  # ✅ FIXED: Was "symbols"
                         "name": name,
                         "type": "program",
                         "signature": f"PROGRAM-ID. {name}",
@@ -142,25 +143,29 @@ class CobolParser:
                         "repository_id": repository_id,
                     }
                 )
-            elif node.type == "paragraph":
-                for child in node.children:
-                    if child.type == "paragraph_name":
-                        name = source_code[child.start_byte : child.end_byte].decode(
-                            "utf-8"
-                        )
-                        symbols.append(
-                            {
-                                "symbol_id": str(uuid.uuid4()),
-                                "name": name,
-                                "type": "paragraph",
-                                "signature": f"{name}.",
-                                "file_path": file_path,
-                                "start_line": node.start_point[0] + 1,
-                                "end_line": node.end_point[0] + 1,
-                                "repository_id": repository_id,
-                            }
-                        )
-                        break
+        
+        # 🔧 FIX: Extract paragraphs (moved outside program_id block)
+        elif node.type == "paragraph":
+            for child in node.children:
+                if child.type == "paragraph_name":
+                    name = source_code[child.start_byte : child.end_byte].decode(
+                        "utf-8"
+                    )
+                    symbols.append(
+                        {
+                            "symbol_id": str(uuid.uuid4()),
+                            "name": name,
+                            "type": "paragraph",
+                            "signature": f"{name}.",
+                            "file_path": file_path,
+                            "start_line": node.start_point[0] + 1,
+                            "end_line": node.end_point[0] + 1,
+                            "repository_id": repository_id,
+                        }
+                    )
+                    break
+        
+        # Recurse through all children
         for child in node.children:
             self._extract_symbols(child, source_code, file_path, repository_id, symbols)
 
