@@ -5,7 +5,7 @@ Detects common security issues in source code.
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 @dataclass
@@ -24,68 +24,128 @@ class SecurityIssue:
 
 
 class SecurityScanner:
-    """Multi-language security vulnerability scanner"""
+    """Multi-language security vulnerability scanner with language awareness"""
 
     SQL_INJECTION_PATTERNS = [
+        # Python-specific patterns (unsafe)
         (
             r'(execute|cursor\.execute|executemany)\s*\(\s*["\'].*%s.*["\']',
             "Python SQL string formatting",
+            ["python"],
         ),
         (
             r"(execute|cursor\.execute|executemany)\s*\(\s*.*\+\s*",
             "Python SQL string concatenation",
+            ["python"],
         ),
-        (r'(execute|cursor\.execute|executemany)\s*\(\s*f["\']', "Python SQL f-string"),
-        (r"sprintf\s*\(.*SELECT|INSERT|UPDATE|DELETE", "C SQL injection via sprintf"),
-        (r"strcat\s*\(.*SELECT|INSERT|UPDATE|DELETE", "C SQL injection via strcat"),
-        (r"EXEC\s+SQL.*:(\w+)", "COBOL dynamic SQL variable"),
+        (
+            r'(execute|cursor\.execute|executemany)\s*\(\s*f["\']',
+            "Python SQL f-string",
+            ["python"],
+        ),
+        # C-specific patterns
+        (
+            r"sprintf\s*\(.*SELECT|INSERT|UPDATE|DELETE",
+            "C SQL injection via sprintf",
+            ["c", "cpp"],
+        ),
+        (
+            r"strcat\s*\(.*SELECT|INSERT|UPDATE|DELETE",
+            "C SQL injection via strcat",
+            ["c", "cpp"],
+        ),
+        # COBOL patterns
+        (r"EXEC\s+SQL.*:(\w+)", "COBOL dynamic SQL variable", ["cobol"]),
     ]
 
     SECRET_PATTERNS = [
-        (r'["\']([A-Za-z0-9_-]{32,})["\']', "API Key"),
-        (r'api[_-]?key\s*=\s*["\']([^"\']+)["\']', "API Key assignment"),
-        (r'password\s*=\s*["\']([^"\']+)["\']', "Hardcoded password"),
-        (r'passwd\s*=\s*["\']([^"\']+)["\']', "Hardcoded password"),
-        (r'pwd\s*=\s*["\']([^"\']+)["\']', "Hardcoded password"),
-        (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
-        (r'aws_secret_access_key\s*=\s*["\']([^"\']+)["\']', "AWS Secret Key"),
+        (r'["\']([A-Za-z0-9_-]{40,})["\']', "API Key", []),  # Increased to 40 chars
+        (r'api[_-]?key\s*=\s*["\']([^"\']+)["\']', "API Key assignment", []),
+        (r'password\s*=\s*["\']([^"\']{8,})["\']', "Hardcoded password", []),
+        (r'passwd\s*=\s*["\']([^"\']{8,})["\']', "Hardcoded password", []),
+        (r'pwd\s*=\s*["\']([^"\']{8,})["\']', "Hardcoded password", []),
+        (r"AKIA[0-9A-Z]{16}", "AWS Access Key", []),
+        (r'aws_secret_access_key\s*=\s*["\']([^"\']+)["\']', "AWS Secret Key", []),
         (
             r"(postgresql|mysql|mongodb)://[^:]+:([^@]+)@",
             "Database password in connection string",
+            [],
         ),
-        (r"-----BEGIN (RSA |DSA )?PRIVATE KEY-----", "Private key"),
-        (r'token\s*=\s*["\']([A-Za-z0-9_-]{20,})["\']', "Hardcoded token"),
-        (r"bearer\s+[A-Za-z0-9_-]{20,}", "Bearer token"),
+        (r"-----BEGIN (RSA |DSA )?PRIVATE KEY-----", "Private key", []),
+        (r'token\s*=\s*["\']([A-Za-z0-9_-]{30,})["\']', "Hardcoded token", []),
+        (r"bearer\s+[A-Za-z0-9_-]{30,}", "Bearer token", []),
     ]
 
     COMMAND_INJECTION_PATTERNS = [
-        (r"os\.system\s*\(.*\+", "os.system with string concatenation"),
-        (r'os\.system\s*\(\s*f["\']', "os.system with f-string"),
+        (
+            r"os\.system\s*\(.*\+",
+            "os.system with string concatenation",
+            ["python"],
+        ),
+        (r'os\.system\s*\(\s*f["\']', "os.system with f-string", ["python"]),
         (
             r"subprocess\.(call|run|Popen)\s*\(.*shell\s*=\s*True",
             "subprocess with shell=True",
+            ["python"],
         ),
-        (r"exec\s*\(", "exec() with dynamic code"),
-        (r"eval\s*\(", "eval() with dynamic code"),
-        (r"system\s*\(", "C system() call"),
-        (r"popen\s*\(", "C popen() call"),
-        (r"execve?\s*\(", "C exec family call"),
+        (r"exec\s*\(", "exec() with dynamic code", ["python"]),
+        (r"eval\s*\(", "eval() with dynamic code", ["python", "javascript"]),
+        (r"system\s*\(", "C system() call", ["c", "cpp"]),
+        (r"popen\s*\(", "C popen() call", ["c", "cpp"]),
+        (r"execve?\s*\(", "C exec family call", ["c", "cpp"]),
     ]
 
     PATH_TRAVERSAL_PATTERNS = [
-        (r"\.\./", "Path traversal attempt (../)"),
-        (r"\.\.[/\\]", "Path traversal attempt (../)"),
-        (r"open\s*\(.*\+", "File open with concatenation (potential path traversal)"),
-        (r"(fopen|open|read)\s*\([^)]*%s", "File operation with format string"),
+        (r"\.\./", "Path traversal attempt (../)", []),
+        (r"\.\.[/\\]", "Path traversal attempt (../)", []),
+        (
+            r"open\s*\(.*\+",
+            "File open with concatenation (potential path traversal)",
+            ["python"],
+        ),
+        (r"(fopen|open|read)\s*\([^)]*%s", "File operation with format string", []),
     ]
 
     XSS_PATTERNS = [
-        (r"<.*\{.*\}.*>", "Template injection risk"),
-        (r"innerHTML\s*=", "Direct innerHTML assignment"),
-        (r"document\.write\s*\(", "document.write (XSS risk)"),
-        (r"eval\s*\(.*request\.", "eval with user input"),
-        (r"\.html\s*\(.*\+", "jQuery .html() with concatenation"),
-        (r"dangerouslySetInnerHTML", "React dangerouslySetInnerHTML"),
+        # Only flag actual HTML rendering contexts, not Python __repr__ methods
+        (
+            r"(render_template|render_to_string)\s*\(.*\{.*\}",
+            "Template rendering with unsafe variables",
+            ["python"],
+        ),
+        (r"innerHTML\s*=", "Direct innerHTML assignment", ["javascript", "typescript"]),
+        (
+            r"document\.write\s*\(",
+            "document.write (XSS risk)",
+            ["javascript", "typescript"],
+        ),
+        (
+            r"eval\s*\(.*request\.",
+            "eval with user input",
+            ["javascript", "typescript"],
+        ),
+        (
+            r"\.html\s*\(.*\+",
+            "jQuery .html() with concatenation",
+            ["javascript", "typescript"],
+        ),
+        (
+            r"dangerouslySetInnerHTML",
+            "React dangerouslySetInnerHTML",
+            ["javascript", "typescript"],
+        ),
+    ]
+
+    SQLALCHEMY_SAFE_PATTERNS = [
+        r"\.query\(",  # db.query(Model)
+        r"\.filter\(",  # .filter(Model.id == ...)
+        r"\.filter_by\(",  # .filter_by(id=...)
+        r"mapped_column\(",  # SQLAlchemy 2.0 column definitions
+        r"relationship\(",  # relationship definitions
+        r"Mapped\[",  # Type annotations
+        r"__repr__",  # Python debug representations
+        r"__str__",  # Python string representations
+        r"f[\"']<.*>.*[\"']",  # f-strings that just format debug output
     ]
 
     VULNERABILITY_METADATA = {
@@ -120,33 +180,74 @@ class SecurityScanner:
         self, file_path: str, content: str, language: str
     ) -> List[SecurityIssue]:
         """
-        Scan a file for security vulnerabilities.
+        Scan a file for security vulnerabilities with language awareness.
 
         Args:
             file_path: Path to the file
             content: File content
-            language: Programming language
+            language: Programming language (lowercased)
 
         Returns:
-            List of security issues found
+            List of unique security issues found
         """
         issues = []
         lines = content.split("\n")
-        issues.extend(self._check_sql_injection(lines, file_path))
-        issues.extend(self._check_hardcoded_secrets(lines, file_path))
-        issues.extend(self._check_command_injection(lines, file_path))
-        issues.extend(self._check_path_traversal(lines, file_path))
-        if language in ["python", "javascript", "typescript"]:
-            issues.extend(self._check_xss(lines, file_path))
-        return issues
+        language_lower = language.lower() if language else ""
+
+        # Check each vulnerability category
+        issues.extend(self._check_sql_injection(lines, file_path, language_lower))
+        issues.extend(self._check_hardcoded_secrets(lines, file_path, language_lower))
+        issues.extend(
+            self._check_command_injection(lines, file_path, language_lower)
+        )
+        issues.extend(self._check_path_traversal(lines, file_path, language_lower))
+
+        # Only check XSS for web-related languages
+        if language_lower in ["python", "javascript", "typescript"]:
+            issues.extend(self._check_xss(lines, file_path, language_lower))
+
+        # Deduplicate issues
+        return self._deduplicate_issues(issues)
+
+    def _is_sqlalchemy_safe(self, line: str) -> bool:
+        """Check if line is safe SQLAlchemy ORM usage or Python debug output"""
+        return any(
+            re.search(pattern, line) for pattern in self.SQLALCHEMY_SAFE_PATTERNS
+        )
+
+    def _should_check_pattern(
+        self, pattern_languages: List[str], current_language: str
+    ) -> bool:
+        """
+        Check if a pattern should be applied to the current language.
+
+        Args:
+            pattern_languages: List of languages this pattern applies to (empty = all)
+            current_language: Current file's language
+
+        Returns:
+            True if pattern should be checked
+        """
+        # If pattern_languages is empty, apply to all languages
+        if not pattern_languages:
+            return True
+        return current_language in pattern_languages
 
     def _check_sql_injection(
-        self, lines: List[str], file_path: str
+        self, lines: List[str], file_path: str, language: str
     ) -> List[SecurityIssue]:
-        """Detect SQL injection vulnerabilities"""
+        """Detect SQL injection vulnerabilities with language context"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            for pattern, description in self.SQL_INJECTION_PATTERNS:
+            # Skip SQLAlchemy ORM code (it's safe)
+            if self._is_sqlalchemy_safe(line):
+                continue
+
+            for pattern, description, languages in self.SQL_INJECTION_PATTERNS:
+                # Skip if pattern doesn't apply to this language
+                if not self._should_check_pattern(languages, language):
+                    continue
+
                 if re.search(pattern, line, re.IGNORECASE):
                     metadata = self.VULNERABILITY_METADATA["SQL Injection"]
                     issues.append(
@@ -165,20 +266,42 @@ class SecurityScanner:
         return issues
 
     def _check_hardcoded_secrets(
-        self, lines: List[str], file_path: str
+        self, lines: List[str], file_path: str, language: str
     ) -> List[SecurityIssue]:
         """Detect hardcoded secrets (passwords, API keys, tokens)"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            if line.strip().startswith("#") or line.strip().startswith("//"):
+            # Skip comments
+            if line.strip().startswith(("#", "//", "/*", "*")):
                 continue
-            for pattern, secret_type in self.SECRET_PATTERNS:
+
+            for pattern, secret_type, languages in self.SECRET_PATTERNS:
+                if not self._should_check_pattern(languages, language):
+                    continue
+
                 if re.search(pattern, line, re.IGNORECASE):
+                    # More comprehensive false positive filtering
                     if any(
                         fp in line.lower()
-                        for fp in ["example", "test", "dummy", "placeholder", "xxx"]
+                        for fp in [
+                            "example",
+                            "test",
+                            "dummy",
+                            "placeholder",
+                            "xxx",
+                            "sample",
+                            "default",
+                            "todo",
+                            "fixme",
+                            "your_",
+                            "<your",
+                            "SECRET_KEY",  # Django setting name
+                            "os.environ",  # Environment variable reference
+                            "getenv",
+                        ]
                     ):
                         continue
+
                     metadata = self.VULNERABILITY_METADATA["Hardcoded Secret"]
                     issues.append(
                         SecurityIssue(
@@ -196,12 +319,15 @@ class SecurityScanner:
         return issues
 
     def _check_command_injection(
-        self, lines: List[str], file_path: str
+        self, lines: List[str], file_path: str, language: str
     ) -> List[SecurityIssue]:
         """Detect command injection vulnerabilities"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            for pattern, description in self.COMMAND_INJECTION_PATTERNS:
+            for pattern, description, languages in self.COMMAND_INJECTION_PATTERNS:
+                if not self._should_check_pattern(languages, language):
+                    continue
+
                 if re.search(pattern, line):
                     metadata = self.VULNERABILITY_METADATA["Command Injection"]
                     issues.append(
@@ -220,12 +346,15 @@ class SecurityScanner:
         return issues
 
     def _check_path_traversal(
-        self, lines: List[str], file_path: str
+        self, lines: List[str], file_path: str, language: str
     ) -> List[SecurityIssue]:
         """Detect path traversal vulnerabilities"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            for pattern, description in self.PATH_TRAVERSAL_PATTERNS:
+            for pattern, description, languages in self.PATH_TRAVERSAL_PATTERNS:
+                if not self._should_check_pattern(languages, language):
+                    continue
+
                 if re.search(pattern, line):
                     metadata = self.VULNERABILITY_METADATA["Path Traversal"]
                     issues.append(
@@ -243,11 +372,20 @@ class SecurityScanner:
                     )
         return issues
 
-    def _check_xss(self, lines: List[str], file_path: str) -> List[SecurityIssue]:
-        """Detect XSS vulnerabilities"""
+    def _check_xss(
+        self, lines: List[str], file_path: str, language: str
+    ) -> List[SecurityIssue]:
+        """Detect XSS vulnerabilities (only in actual HTML rendering contexts)"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            for pattern, description in self.XSS_PATTERNS:
+            # Skip Python __repr__ and __str__ methods (they're debug output)
+            if self._is_sqlalchemy_safe(line):
+                continue
+
+            for pattern, description, languages in self.XSS_PATTERNS:
+                if not self._should_check_pattern(languages, language):
+                    continue
+
                 if re.search(pattern, line):
                     metadata = self.VULNERABILITY_METADATA["XSS"]
                     issues.append(
@@ -265,7 +403,30 @@ class SecurityScanner:
                     )
         return issues
 
+    def _deduplicate_issues(self, issues: List[SecurityIssue]) -> List[SecurityIssue]:
+        """
+        Remove duplicate issues based on type, line number, and description.
+
+        Args:
+            issues: List of security issues
+
+        Returns:
+            Deduplicated list of issues
+        """
+        seen: Set[Tuple[str, int, str]] = set()
+        unique_issues = []
+
+        for issue in issues:
+            # Create unique key from type, line number, and description
+            key = (issue.type, issue.line_number, issue.description)
+            if key not in seen:
+                seen.add(key)
+                unique_issues.append(issue)
+
+        return unique_issues
+
     @staticmethod
     def _redact_secret(text: str) -> str:
         """Redact secrets in code snippets for safe display"""
-        return re.sub(r'["\']([A-Za-z0-9_-]{8,})["\']', r'"***REDACTED***"', text)
+        # Redact longer strings to avoid false positives on short variable names
+        return re.sub(r'["\']([A-Za-z0-9_-]{12,})["\']', r'"***REDACTED***"', text)
