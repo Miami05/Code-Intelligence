@@ -43,14 +43,14 @@ class SecurityScanner:
             "Python SQL f-string",
             ["python"],
         ),
-        # C-specific patterns
+        # C-specific patterns (must have actual SQL keywords)
         (
-            r"sprintf\s*\(.*SELECT|INSERT|UPDATE|DELETE",
+            r"sprintf\s*\([^)]*\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\b",
             "C SQL injection via sprintf",
             ["c", "cpp"],
         ),
         (
-            r"strcat\s*\(.*SELECT|INSERT|UPDATE|DELETE",
+            r"strcat\s*\([^)]*\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\b",
             "C SQL injection via strcat",
             ["c", "cpp"],
         ),
@@ -92,18 +92,22 @@ class SecurityScanner:
         (r"eval\s*\(", "eval() with dynamic code", ["python", "javascript"]),
         (r"system\s*\(", "C system() call", ["c", "cpp"]),
         (r"popen\s*\(", "C popen() call", ["c", "cpp"]),
-        (r"execve?\s*\(", "C exec family call", ["c", "cpp"]),
+        # Only flag execve with user-controlled input
+        (r"execve?\s*\([^)]*argv", "execve() with potentially unsafe input", ["c", "cpp"]),
     ]
 
     PATH_TRAVERSAL_PATTERNS = [
-        (r"\.\./", "Path traversal attempt (../)", []),
-        (r"\.\.[/\\]", "Path traversal attempt (../)", []),
+        # Exclude C/C++ include paths - only flag actual file operations
+        (
+            r'(fopen|open|fread|fwrite|remove|unlink)\s*\([^)]*\.\.',
+            "File operation with path traversal (../)",
+            ["c", "cpp"],
+        ),
         (
             r"open\s*\(.*\+",
             "File open with concatenation (potential path traversal)",
             ["python"],
         ),
-        (r"(fopen|open|read)\s*\([^)]*%s", "File operation with format string", []),
     ]
 
     XSS_PATTERNS = [
@@ -148,6 +152,15 @@ class SecurityScanner:
         r"f[\"']<.*>.*[\"']",  # f-strings that just format debug output
     ]
 
+    C_PREPROCESSOR_PATTERNS = [
+        r"^\s*#\s*include",  # #include statements
+        r"^\s*#\s*define",  # #define macros
+        r"^\s*#\s*if",  # #if, #ifdef, #ifndef
+        r"^\s*#\s*endif",  # #endif
+        r"^\s*#\s*pragma",  # #pragma directives
+        r"^\s*#\s*undef",  # #undef
+    ]
+
     VULNERABILITY_METADATA = {
         "SQL Injection": {
             "cwe": "CWE-89",
@@ -162,12 +175,12 @@ class SecurityScanner:
         "Command Injection": {
             "cwe": "CWE-78",
             "owasp": "A03:2021 - Injection",
-            "recommendation": "Avoid shell=True. Use subprocess with argument lists. Validate and sanitize all user input.",
+            "recommendation": "Avoid shell=True. Use subprocess with argument lists. Validate and sanitize all user input. For execve(), ensure arguments are properly validated.",
         },
         "Path Traversal": {
             "cwe": "CWE-22",
             "owasp": "A01:2021 - Broken Access Control",
-            "recommendation": "Validate file paths. Use os.path.abspath() and check if path starts with allowed directory.",
+            "recommendation": "Validate file paths. Use os.path.abspath() and check if path starts with allowed directory. In C, use realpath() and validate paths.",
         },
         "XSS": {
             "cwe": "CWE-79",
@@ -209,6 +222,15 @@ class SecurityScanner:
         # Deduplicate issues
         return self._deduplicate_issues(issues)
 
+    def _is_c_preprocessor_directive(self, line: str) -> bool:
+        """
+        Check if line is a C/C++ preprocessor directive.
+        These are not security vulnerabilities - they're compiler directives.
+        """
+        return any(
+            re.match(pattern, line) for pattern in self.C_PREPROCESSOR_PATTERNS
+        )
+
     def _is_sqlalchemy_safe(self, line: str) -> bool:
         """Check if line is safe SQLAlchemy ORM usage or Python debug output"""
         return any(
@@ -239,6 +261,10 @@ class SecurityScanner:
         """Detect SQL injection vulnerabilities with language context"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
+            # Skip C/C++ preprocessor directives
+            if language in ["c", "cpp"] and self._is_c_preprocessor_directive(line):
+                continue
+
             # Skip SQLAlchemy ORM code (it's safe)
             if self._is_sqlalchemy_safe(line):
                 continue
@@ -271,8 +297,11 @@ class SecurityScanner:
         """Detect hardcoded secrets (passwords, API keys, tokens)"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
-            # Skip comments
+            # Skip comments and C/C++ preprocessor directives
             if line.strip().startswith(("#", "//", "/*", "*")):
+                continue
+
+            if language in ["c", "cpp"] and self._is_c_preprocessor_directive(line):
                 continue
 
             for pattern, secret_type, languages in self.SECRET_PATTERNS:
@@ -324,6 +353,10 @@ class SecurityScanner:
         """Detect command injection vulnerabilities"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
+            # Skip C/C++ preprocessor directives
+            if language in ["c", "cpp"] and self._is_c_preprocessor_directive(line):
+                continue
+
             for pattern, description, languages in self.COMMAND_INJECTION_PATTERNS:
                 if not self._should_check_pattern(languages, language):
                     continue
@@ -340,7 +373,7 @@ class SecurityScanner:
                             recommendation=metadata["recommendation"],
                             cwe_id=metadata["cwe"],
                             owasp_category=metadata["owasp"],
-                            confidence="high",
+                            confidence="medium",  # Lower confidence for execve in shell implementations
                         )
                     )
         return issues
@@ -348,9 +381,13 @@ class SecurityScanner:
     def _check_path_traversal(
         self, lines: List[str], file_path: str, language: str
     ) -> List[SecurityIssue]:
-        """Detect path traversal vulnerabilities"""
+        """Detect path traversal vulnerabilities (excluding C include statements)"""
         issues = []
         for line_num, line in enumerate(lines, start=1):
+            # Skip C/C++ preprocessor directives (#include with ../ is NORMAL)
+            if language in ["c", "cpp"] and self._is_c_preprocessor_directive(line):
+                continue
+
             for pattern, description, languages in self.PATH_TRAVERSAL_PATTERNS:
                 if not self._should_check_pattern(languages, language):
                     continue
