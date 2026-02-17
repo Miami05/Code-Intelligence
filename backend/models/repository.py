@@ -1,9 +1,4 @@
 import enum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .vulnerability import Vulnerability
-
 import uuid
 from datetime import datetime
 
@@ -67,6 +62,8 @@ class Repository(Base):
     files = relationship(
         "File", back_populates="repository", cascade="all, delete-orphan"
     )
+    # Use string-based relationship to avoid circular import
+    # The Vulnerability model will be resolved at runtime by SQLAlchemy
     vulnerabilities = relationship(
         "Vulnerability", back_populates="repository", cascade="all, delete-orphan"
     )
