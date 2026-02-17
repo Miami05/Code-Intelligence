@@ -3,63 +3,68 @@ Celery task to extract call graph relationships and save to database.
 Runs after repository parsing is complete.
 """
 
-from analyzers.call_graph import CallGraphAnalyzer
+import os
+from typing import Dict, List
+from uuid import UUID
+
 from celery_app import celery_app
 from database import SessionLocal
 from models import File, Repository, Symbol
 from models.call_relationship import CallRelationship
+from models.repository import RepoStatus
+from analyzers.call_graph import CallGraphAnalyzer
 
 
 @celery_app.task(bind=True, name="tasks.extract_call_graph.extract_call_graph_task")
 def extract_call_graph_task(self, repository_id: str):
     """
     Extract function call relationships and save to database.
-
+    
     This task:
     1. Loads all files and symbols for the repository
     2. Analyzes code to find function calls
     3. Saves CallRelationship records to database
-
+    
     Args:
         repository_id: UUID of the repository
-
+        
     Returns:
         Dictionary with extraction statistics
     """
     db = SessionLocal()
-
+    
     try:
         repo = db.query(Repository).filter(Repository.id == repository_id).first()
         if not repo:
             print(f"❌ Repository {repository_id} not found")
             return {"error": "Repository not found"}
-
+        
         print(f"📊 Extracting call graph for: {repo.name} (ID: {repository_id})")
-
+        
         # Get all files for this repository
         files = db.query(File).filter(File.repository_id == repository_id).all()
-
+        
         if not files:
             print(f"⚠️  No files found for repository {repository_id}")
             return {
                 "repository_id": repository_id,
                 "files_analyzed": 0,
                 "calls_extracted": 0,
-                "status": "no_files",
+                "status": "no_files"
             }
-
+        
         # Build files_data structure for analyzer
         files_data = []
-
+        
         for file in files:
             # Skip files without source code
             if not file.source:
                 print(f"  ⚠️  No source code for: {file.file_path}")
                 continue
-
+            
             # Get symbols for this file
             symbols = db.query(Symbol).filter(Symbol.file_id == file.id).all()
-
+            
             # Convert symbols to dict format
             symbols_data = [
                 {
@@ -71,30 +76,28 @@ def extract_call_graph_task(self, repository_id: str):
                 }
                 for sym in symbols
             ]
-
-            files_data.append(
-                {
-                    "file_path": file.file_path,
-                    "language": file.language,
-                    "source_code": file.source,  # Read from database instead of disk
-                    "symbols": symbols_data,
-                }
-            )
-
+            
+            files_data.append({
+                "file_path": file.file_path,
+                "language": file.language,
+                "source_code": file.source,  # Read from database instead of disk
+                "symbols": symbols_data,
+            })
+        
         if not files_data:
             print(f"⚠️  No files with source code found")
             return {
                 "repository_id": repository_id,
                 "files_analyzed": 0,
                 "calls_extracted": 0,
-                "status": "no_source_code",
+                "status": "no_source_code"
             }
-
+        
         print(f"  📁 Loaded {len(files_data)} files with source code")
-
+        
         # Initialize analyzer
         analyzer = CallGraphAnalyzer(repository_id)
-
+        
         # Extract all call relationships
         all_calls = []
         for file_data in files_data:
@@ -102,10 +105,10 @@ def extract_call_graph_task(self, repository_id: str):
             file_path = file_data["file_path"]
             source = file_data["source_code"]
             symbols = file_data["symbols"]
-
+            
             if not source:
                 continue
-
+            
             # Analyze based on language
             try:
                 if language == "python":
@@ -119,54 +122,107 @@ def extract_call_graph_task(self, repository_id: str):
                 else:
                     print(f"  ⚠️  Unsupported language for call graph: {language}")
                     continue
-
+                
                 if calls:
                     print(f"  ✓ {file_path}: {len(calls)} calls found")
                 all_calls.extend(calls)
             except Exception as e:
                 print(f"  ⚠️  Error analyzing {file_path}: {e}")
                 continue
-
+        
+        # 🔧 FIX: Look up caller symbols before saving to prevent NOT NULL constraint violation
         saved_count = 0
+        skipped_count = 0
+        
         for call in all_calls:
             try:
+                # Look up caller symbol if caller_symbol_id is provided
+                caller_symbol_id = call.get("caller_symbol_id")
+                
+                # If caller_symbol_id is not provided, try to look it up by name and file
+                if not caller_symbol_id:
+                    caller_name = call.get("caller_name")
+                    caller_file = call.get("caller_file")
+                    
+                    if caller_name and caller_file:
+                        # Query for the caller symbol
+                        caller_symbol = db.query(Symbol).join(File).filter(
+                            File.repository_id == repository_id,
+                            File.file_path == caller_file,
+                            Symbol.name == caller_name
+                        ).first()
+                        
+                        if caller_symbol:
+                            caller_symbol_id = caller_symbol.id
+                        else:
+                            print(f"  ⚠️  Caller symbol not found: {caller_name} in {caller_file}")
+                            skipped_count += 1
+                            continue
+                
+                # Skip if we still don't have a caller_symbol_id (NOT NULL constraint)
+                if not caller_symbol_id:
+                    print(f"  ⚠️  Skipping call without caller_symbol_id: {call.get('caller_name')}")
+                    skipped_count += 1
+                    continue
+                
+                # Look up callee symbol if not provided
+                callee_symbol_id = call.get("callee_symbol_id")
+                if not callee_symbol_id:
+                    callee_name = call.get("callee_name")
+                    callee_file = call.get("callee_file")
+                    
+                    if callee_name and callee_file:
+                        callee_symbol = db.query(Symbol).join(File).filter(
+                            File.repository_id == repository_id,
+                            File.file_path == callee_file,
+                            Symbol.name == callee_name
+                        ).first()
+                        
+                        if callee_symbol:
+                            callee_symbol_id = callee_symbol.id
+                
+                # Create call relationship record
                 call_record = CallRelationship(
                     repository_id=repository_id,
-                    caller_symbol_id=call.get("caller_symbol_id"),
+                    caller_symbol_id=caller_symbol_id,  # ✅ Now guaranteed to be non-null
                     caller_name=call["caller_name"],
                     caller_file=call["caller_file"],
                     callee_name=call["callee_name"],
                     callee_file=call.get("callee_file"),
-                    callee_symbol_id=call.get("callee_symbol_id"),
-                    call_line=call["call_line"],  # FIXED: Use call_line not caller_line
-                    is_external=call["is_external"],
+                    callee_symbol_id=callee_symbol_id,
+                    call_line=call["call_line"],
+                    is_external=call.get("is_external", callee_symbol_id is None),
                 )
                 db.add(call_record)
                 saved_count += 1
+                
             except Exception as e:
                 print(f"  ⚠️  Error saving call: {e}")
+                skipped_count += 1
                 continue
-
+        
         db.commit()
-
+        
         print(f"✅ Call graph extraction complete for {repository_id}")
         print(f"   Files analyzed: {len(files_data)}")
         print(f"   Calls extracted: {saved_count}")
-
+        if skipped_count > 0:
+            print(f"   Calls skipped: {skipped_count} (missing caller symbol)")
+        
         return {
             "repository_id": repository_id,
             "files_analyzed": len(files_data),
             "calls_extracted": saved_count,
-            "status": "completed",
+            "calls_skipped": skipped_count,
+            "status": "completed"
         }
-
+        
     except Exception as e:
         print(f"❌ Error extracting call graph: {e}")
         import traceback
-
         traceback.print_exc()
         db.rollback()
         raise
-
+    
     finally:
         db.close()
