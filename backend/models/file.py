@@ -2,11 +2,13 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from database import Base
-from models import Repository, Symbol
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base
+from models.repository import Repository
+from models.symbol import Symbol
 
 
 class File(Base):
