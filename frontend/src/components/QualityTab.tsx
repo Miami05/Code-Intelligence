@@ -1,14 +1,28 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { repositoryApi } from '../services/repositoryApi';
-import { QualityDashboard, ComplexFunction } from '../types/repository';
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { repositoryApi } from "../services/repositoryApi";
+import { QualityDashboard, ComplexFunction } from "../types/repository";
 
 export function QualityTab() {
   const { id } = useParams<{ id: string }>();
   const [dashboard, setDashboard] = useState<QualityDashboard | null>(null);
-  const [complexFunctions, setComplexFunctions] = useState<ComplexFunction[]>([]);
+  const [complexFunctions, setComplexFunctions] = useState<ComplexFunction[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +41,7 @@ export function QualityTab() {
       setDashboard(dashboardData);
       setComplexFunctions(complexData.functions || []);
     } catch (error) {
-      console.error('Failed to load quality data:', error);
+      console.error("Failed to load quality data:", error);
     } finally {
       setLoading(false);
     }
@@ -37,7 +51,9 @@ export function QualityTab() {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-slate-600 dark:text-slate-400">Loading quality metrics...</p>
+        <p className="text-slate-600 dark:text-slate-400">
+          Loading quality metrics...
+        </p>
       </div>
     );
   }
@@ -46,7 +62,9 @@ export function QualityTab() {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-        <p className="text-slate-600 dark:text-slate-400">No quality data available</p>
+        <p className="text-slate-600 dark:text-slate-400">
+          No quality data available
+        </p>
       </div>
     );
   }
@@ -55,51 +73,76 @@ export function QualityTab() {
   const complexityDist = dashboard.complexity_distribution || {};
   const maintainabilityDist = dashboard.maintainability_distribution || {};
 
-  // Prepare chart data with safe accessors
+  const avgComplexity = dashboard.average_complexity ?? 0;
+  const avgMaintainability = dashboard.average_maintainability ?? 0;
+
   const complexityData = [
-    { 
-      name: 'Simple (1-10)', 
-      value: complexityDist['simple (1-10)'] || 0, 
-      color: '#10b981',
-      label: 'Simple'
+    {
+      name: "Simple (1-10)",
+      value: complexityDist["simple (1-10)"] || 0,
+      color: "#10b981",
+      label: "Simple",
     },
-    { 
-      name: 'Moderate (11-20)', 
-      value: complexityDist['moderate (11-20)'] || 0, 
-      color: '#f59e0b',
-      label: 'Moderate'
+    {
+      name: "Moderate (11-20)",
+      value: complexityDist["moderate (11-20)"] || 0,
+      color: "#f59e0b",
+      label: "Moderate",
     },
-    { 
-      name: 'Complex (21-50)', 
-      value: complexityDist['complex (21-50)'] || 0, 
-      color: '#f97316',
-      label: 'Complex'
+    {
+      name: "Complex (21-50)",
+      value: complexityDist["complex (21-50)"] || 0,
+      color: "#f97316",
+      label: "Complex",
     },
-    { 
-      name: 'Very Complex (50+)', 
-      value: complexityDist['very_complex (50+)'] || 0, 
-      color: '#ef4444',
-      label: 'Very Complex'
+    {
+      name: "Very Complex (50+)",
+      value: complexityDist["very_complex (50+)"] || 0,
+      color: "#ef4444",
+      label: "Very Complex",
     },
   ];
 
   const maintainabilityData = [
-    { name: 'Excellent (85-100)', value: maintainabilityDist['excellent (85-100)'] || 0, color: '#10b981' },
-    { name: 'Good (65-84)', value: maintainabilityDist['good (65-84)'] || 0, color: '#f59e0b' },
-    { name: 'Fair (50-64)', value: maintainabilityDist['fair (50-64)'] || 0, color: '#f97316' },
-    { name: 'Poor (<50)', value: maintainabilityDist['poor (<50)'] || 0, color: '#ef4444' },
+    {
+      name: "Excellent (85-100)",
+      value: maintainabilityDist["excellent (85-100)"] || 0,
+      color: "#10b981",
+    },
+    {
+      name: "Good (65-84)",
+      value: maintainabilityDist["good (65-84)"] || 0,
+      color: "#f59e0b",
+    },
+    {
+      name: "Fair (50-64)",
+      value: maintainabilityDist["fair (50-64)"] || 0,
+      color: "#f97316",
+    },
+    {
+      name: "Poor (<50)",
+      value: maintainabilityDist["poor (<50)"] || 0,
+      color: "#ef4444",
+    },
   ];
 
   // Calculate total for percentages
-  const totalComplexity = complexityData.reduce((sum, item) => sum + item.value, 0);
+  const totalComplexity = complexityData.reduce(
+    (sum, item) => sum + item.value,
+    0,
+  );
 
   // If no data at all, show message
   if (totalComplexity === 0 && dashboard.total_symbols === 0) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-        <p className="text-slate-600 dark:text-slate-400 mb-2">No code analysis data available</p>
-        <p className="text-sm text-slate-500">This repository may still be processing or failed to import.</p>
+        <p className="text-slate-600 dark:text-slate-400 mb-2">
+          No code analysis data available
+        </p>
+        <p className="text-sm text-slate-500">
+          This repository may still be processing or failed to import.
+        </p>
       </div>
     );
   }
@@ -109,27 +152,36 @@ export function QualityTab() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Total Symbols</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+            Total Symbols
+          </p>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {dashboard.total_symbols}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Avg Complexity</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+            Avg Complexity
+          </p>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {avgComplexity.toFixed(1)}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Avg Maintainability</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+            Avg Maintainability
+          </p>
           <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {avgMaintainability.toFixed(1)}
           </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Issues</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+            Issues
+          </p>
           <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            {dashboard.high_complexity_count + dashboard.low_maintainability_count}
+            {dashboard.high_complexity_count +
+              dashboard.low_maintainability_count}
           </p>
         </div>
       </div>
@@ -149,7 +201,9 @@ export function QualityTab() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ percent }) => percent > 0 ? `${(percent * 100).toFixed(0)}%` : ''}
+                  label={({ percent }) =>
+                    percent > 0 ? `${(percent * 100).toFixed(0)}%` : ""
+                  }
                   outerRadius={90}
                   fill="#8884d8"
                   dataKey="value"
@@ -161,15 +215,18 @@ export function QualityTab() {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-            
+
             {/* Custom Legend with better spacing */}
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 mt-4 w-full max-w-md">
               {complexityData.map((item, index) => {
-                const percentage = totalComplexity > 0 ? ((item.value / totalComplexity) * 100).toFixed(0) : 0;
+                const percentage =
+                  totalComplexity > 0
+                    ? ((item.value / totalComplexity) * 100).toFixed(0)
+                    : 0;
                 return (
                   <div key={index} className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded-sm flex-shrink-0" 
+                    <div
+                      className="w-4 h-4 rounded-sm flex-shrink-0"
                       style={{ backgroundColor: item.color }}
                     />
                     <div className="flex-1 min-w-0">
@@ -194,21 +251,25 @@ export function QualityTab() {
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={maintainabilityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-              <XAxis 
-                dataKey="name" 
-                angle={-45} 
-                textAnchor="end" 
-                height={100}
-                tick={{ fontSize: 12, fill: '#94a3b8' }}
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#334155"
+                opacity={0.3}
               />
-              <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} />
-              <Tooltip 
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={100}
+                tick={{ fontSize: 12, fill: "#94a3b8" }}
+              />
+              <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} />
+              <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  color: '#fff'
+                  backgroundColor: "#1e293b",
+                  border: "1px solid #334155",
+                  borderRadius: "8px",
+                  color: "#fff",
                 }}
               />
               <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
@@ -235,15 +296,23 @@ export function QualityTab() {
                     <p className="font-mono font-semibold text-slate-900 dark:text-white truncate">
                       {func.name}
                     </p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 truncate">{func.file_path}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+                      {func.file_path}
+                    </p>
                   </div>
                   <div className="flex gap-4 flex-shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Complexity</p>
-                      <p className="text-lg font-bold text-orange-600">{func.complexity}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Complexity
+                      </p>
+                      <p className="text-lg font-bold text-orange-600">
+                        {func.complexity}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Maintainability</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Maintainability
+                      </p>
                       <p className="text-lg font-bold text-blue-600">
                         {func.maintainability.toFixed(0)}
                       </p>
