@@ -7,9 +7,8 @@ from config import settings
 
 client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
 
-# OpenAI limits
-MAX_BATCH_SIZE = 2048  # Max inputs per request
-MAX_TEXT_LENGTH = 8191  # Max tokens (~32k chars)
+MAX_BATCH_SIZE = 2048
+MAX_TEXT_LENGTH = 8191
 
 
 def generate_embedding(text: str, model: Optional[str] = None) -> List[float]:
@@ -41,7 +40,7 @@ def generate_embeddings_batch(
 ) -> List[List[float]]:
     """
     Generate embeddings for multiple texts in batches.
-    
+
     OpenAI has a limit of 2048 inputs per request, so we chunk large batches.
 
     Args:
@@ -55,44 +54,48 @@ def generate_embeddings_batch(
         raise ValueError("OpenAI API key not configured")
     if not texts:
         return []
-    
+
     # Filter and clean texts
     valid_texts = []
     for text in texts:
         if text and isinstance(text, str) and text.strip():
             # Truncate to OpenAI's limit
-            cleaned = text.strip()[:MAX_TEXT_LENGTH * 4]  # ~4 chars per token
+            cleaned = text.strip()[: MAX_TEXT_LENGTH * 4]  # ~4 chars per token
             valid_texts.append(cleaned)
         else:
             # Use placeholder for empty texts
             valid_texts.append("[empty]")
-    
+
     if not valid_texts:
         print("⚠️  No valid texts to embed")
         return []
-    
+
     model = model or settings.openai_model
     all_embeddings = []
-    
+
     # Process in chunks of MAX_BATCH_SIZE
     total_batches = (len(valid_texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
-    
+
     try:
         for i in range(0, len(valid_texts), MAX_BATCH_SIZE):
-            batch = valid_texts[i:i + MAX_BATCH_SIZE]
+            batch = valid_texts[i : i + MAX_BATCH_SIZE]
             batch_num = (i // MAX_BATCH_SIZE) + 1
-            
-            print(f"📊 Batch {batch_num}/{total_batches}: Generating {len(batch)} embeddings...")
-            
+
+            print(
+                f"📊 Batch {batch_num}/{total_batches}: Generating {len(batch)} embeddings..."
+            )
+
             response = client.embeddings.create(input=batch, model=model)
             embeddings = [item.embedding for item in response.data]
             all_embeddings.extend(embeddings)
-            
-            print(f"✅ Batch {batch_num}/{total_batches}: Generated {len(embeddings)} embeddings")
-        
+
+            print(
+                f"✅ Batch {batch_num}/{total_batches}: Generated {len(embeddings)} embeddings"
+            )
+
         print(f"✅ Total: Generated {len(all_embeddings)} embeddings")
         return all_embeddings
-        
+
     except Exception as e:
         print(f"❌ Error generating batch embeddings: {e}")
         # Log details for debugging

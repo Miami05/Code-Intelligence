@@ -55,6 +55,10 @@ export function QualityTab() {
   const complexityDist = dashboard.complexity_distribution || {};
   const maintainabilityDist = dashboard.maintainability_distribution || {};
 
+  // Define average metrics safely
+  const avgComplexity = dashboard.average_complexity ?? 0;
+  const avgMaintainability = dashboard.average_maintainability ?? 0;
+
   // Prepare chart data with safe accessors
   const complexityData = [
     { 
@@ -177,7 +181,7 @@ export function QualityTab() {
                         {item.label}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {item.name.match(/\(([^)]+)\)/)?.[1]}: {percentage}%
+                        {item.name.match(/\\(([^)]+)\\)/)?.[1]}: {percentage}%
                       </p>
                     </div>
                   </div>
