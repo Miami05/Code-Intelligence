@@ -122,7 +122,7 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
     nodes_map = {}
 
     for rel in relationships:
-        if rel.caller_name and rel.caller_name not in nodes_map:
+        if rel.caller_name is not None and rel.caller_name not in nodes_map:
             nodes_map[rel.caller_name] = {
                 "id": rel.caller_name,
                 "name": rel.caller_name,
@@ -131,7 +131,7 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
                 "calls": [],
                 "called_by": [],
             }
-        if rel.callee_name and rel.callee_name not in nodes_map:
+        if rel.callee_name is not None and rel.callee_name not in nodes_map:
             nodes_map[rel.callee_name] = {
                 "id": rel.callee_name,
                 "name": rel.callee_name,
@@ -143,7 +143,7 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
             }
 
     for rel in relationships:
-        if rel.caller_name and rel.callee_name:
+        if rel.caller_name is not None and rel.callee_name is not None:
             if rel.caller_name in nodes_map:
                 nodes_map[rel.caller_name]["calls"].append(rel.callee_name)
             if rel.callee_name in nodes_map:
@@ -160,7 +160,7 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
             "is_external": rel.is_external,
         }
         for rel in relationships
-        if rel.caller_name and rel.callee_name
+        if rel.caller_name is not None and rel.callee_name is not None
     ]
 
     return {
@@ -210,8 +210,8 @@ def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
         .all()
     )
 
-    all_func_set = {f[0] for f in all_functions if f[0]}
-    called_func_set = {f[0] for f in called_functions if f[0]}
+    all_func_set = {f[0] for f in all_functions if f[0] is not None}
+    called_func_set = {f[0] for f in called_functions if f[0] is not None}
     dead_functions_count = len(all_func_set - called_func_set)
 
     # Detect circular dependencies
@@ -226,7 +226,7 @@ def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
 
     graph = defaultdict(list)
     for rel in relationships:
-        if rel.caller_name and rel.callee_name:
+        if rel.caller_name is not None and rel.callee_name is not None:
             graph[rel.caller_name].append(rel.callee_name)
 
     cycles = detect_cycles_dfs(dict(graph))
@@ -267,7 +267,7 @@ def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
     total_deps = 0
 
     for file in files:
-        if not file.source:
+        if file.source is None:
             continue
 
         imports = extract_imports_from_file(file.file_path, file.source, file.language)
@@ -325,7 +325,7 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
         .all()
     )
 
-    called_names = {name[0] for name in called_functions_names if name[0]}
+    called_names = {name[0] for name in called_functions_names if name[0] is not None}
 
     dead_functions = [
         {
@@ -335,7 +335,7 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
             "calls": stat.call_count,
         }
         for stat in caller_stats
-        if stat.caller_name and stat.caller_name not in called_names
+        if stat.caller_name is not None and stat.caller_name not in called_names
     ]
 
     return {
@@ -372,7 +372,7 @@ def get_circular_dependencies(repository_id: str, db: Session = Depends(get_db))
 
     graph = defaultdict(list)
     for rel in relationships:
-        if rel.caller_name and rel.callee_name:
+        if rel.caller_name is not None and rel.callee_name is not None:
             graph[rel.caller_name].append(rel.callee_name)
 
     cycles = detect_cycles_dfs(dict(graph))
