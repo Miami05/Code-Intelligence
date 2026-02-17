@@ -68,7 +68,7 @@ def _complexity_python(code: str) -> Tuple[int, Dict[str, int]]:
         count = len(re.findall(pattern, code))
         breakdowns[name] = count
         complexity += count
-    comp = len(re.findall(r"[\[\(\{][^\n]*\bfor\b[^\n]*\bif\b[^\n]*[\]\)\}]", code))
+    comp = len(re.findall(r"[\\[\\(\\{][^\\n]*\\bfor\\b[^\\n]*\\bif\\b[^\\n]*[\\]\\)\\}]", code))
     breakdowns["comprehensions_for_if"] = comp
     return max(1, complexity), breakdowns
 
@@ -106,7 +106,7 @@ def _complexity_cobol(code: str) -> Tuple[int, Dict[str, int]]:
         "AND": r"\bAND\b",
         "OR": r"\bOR\b",
     }
-    for name, pattern in patterns:
+    for name, pattern in patterns.items():  # ✅ FIXED: Added .items()
         count = len(re.findall(pattern, code_upper))
         breakdowns[name] = count
         complexity += count
@@ -119,7 +119,7 @@ def _complexity_assembly(code: str) -> Tuple[int, Dict[str, int]]:
     breakdowns: Dict[str, int] = {"base": 1}
     code_upper = code.upper()
     patterns: Dict[str, str] = {
-        "Jxx": r"\bJ[A-Z]+\b",
+        "Jxx": r"\bJ[A-Z]+\\b",
         "CALL": r"\bCALL\b",
         "RET": r"\bRET\b",
         "LOOP": r"\bLOOP\b",
