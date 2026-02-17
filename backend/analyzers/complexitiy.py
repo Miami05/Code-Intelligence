@@ -68,7 +68,14 @@ def _complexity_python(code: str) -> Tuple[int, Dict[str, int]]:
         count = len(re.findall(pattern, code))
         breakdowns[name] = count
         complexity += count
-    comp = len(re.findall(r"[\[\(\{][^\n]*\bfor\b[^\n]*\bif\b[^\n]*[\]\)\}]", code))
+    
+    # ✅ FIXED: Simplified regex to avoid nested escape issues causing re.error
+    # Original was: r"[\[\(\{][^\n]*\bfor\b[^\n]*\bif\b[^\n]*[\]\)\}]"
+    try:
+        comp = len(re.findall(r"(\[|\(|\{).*?\bfor\b.*?\bif\b.*?(\]|\)|\})", code, re.DOTALL))
+    except Exception:
+        comp = 0
+        
     breakdowns["comprehensions_for_if"] = comp
     return max(1, complexity), breakdowns
 
@@ -106,7 +113,7 @@ def _complexity_cobol(code: str) -> Tuple[int, Dict[str, int]]:
         "AND": r"\bAND\b",
         "OR": r"\bOR\b",
     }
-    for name, pattern in patterns:
+    for name, pattern in patterns.items():
         count = len(re.findall(pattern, code_upper))
         breakdowns[name] = count
         complexity += count

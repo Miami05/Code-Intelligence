@@ -83,7 +83,7 @@ class CodeIngestion:
                     if language not in files_by_language:
                         files_by_language[language] = {"files": 0, "symbols": 0}
                     files_by_language[language]["files"] += 1
-                    files_by_language[language]["symbols"] += 1
+                    files_by_language[language]["symbols"] += len(symbols)  # ✅ FIXED: Was += 1
                     for symbol_dict in symbols:
                         type_mapping = {
                             "function": SymbolType.function,
@@ -109,8 +109,8 @@ class CodeIngestion:
                             file_id=file_record.id,
                             name=symbol_dict["name"],
                             type=symbol_type,
-                            line_start=symbol_dict.get("start_line", 1),
-                            line_end=symbol_dict.get("end_line", 1),
+                            line_start=symbol_dict.get("start_line", symbol_dict.get("line_start", 1)),
+                            line_end=symbol_dict.get("end_line", symbol_dict.get("line_end", 1)),
                             signature=symbol_dict.get("signature", ""),
                         )
                         db.add(symbol)

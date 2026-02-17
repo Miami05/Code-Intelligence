@@ -3,6 +3,7 @@ from .file import File
 from .repository import Repository, RepoStatus, RepoSource
 from .symbol import Symbol, SymbolType
 from .call_relationship import CallRelationship
+from .vulnerability import Vulnerability
 
 __all__ = [
     "Repository",
@@ -13,4 +14,5 @@ __all__ = [
     "SymbolType",
     "Embedding",
     "CallRelationship",
+    "Vulnerability",
 ]

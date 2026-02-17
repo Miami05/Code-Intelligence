@@ -5,6 +5,7 @@ Runs after repository parsing is complete.
 
 import os
 from typing import Dict, List
+from uuid import UUID
 
 from celery_app import celery_app
 from database import SessionLocal
@@ -129,25 +130,75 @@ def extract_call_graph_task(self, repository_id: str):
                 print(f"  ⚠️  Error analyzing {file_path}: {e}")
                 continue
         
-        # Save call relationships to database
+        # 🔧 FIX: Look up caller symbols before saving to prevent NOT NULL constraint violation
         saved_count = 0
+        skipped_count = 0
+        
         for call in all_calls:
             try:
+                # Look up caller symbol if caller_symbol_id is provided
+                caller_symbol_id = call.get("caller_symbol_id")
+                
+                # If caller_symbol_id is not provided, try to look it up by name and file
+                if not caller_symbol_id:
+                    caller_name = call.get("caller_name")
+                    caller_file = call.get("caller_file")
+                    
+                    if caller_name and caller_file:
+                        # Query for the caller symbol
+                        caller_symbol = db.query(Symbol).join(File).filter(
+                            File.repository_id == repository_id,
+                            File.file_path == caller_file,
+                            Symbol.name == caller_name
+                        ).first()
+                        
+                        if caller_symbol:
+                            caller_symbol_id = caller_symbol.id
+                        else:
+                            print(f"  ⚠️  Caller symbol not found: {caller_name} in {caller_file}")
+                            skipped_count += 1
+                            continue
+                
+                # Skip if we still don't have a caller_symbol_id (NOT NULL constraint)
+                if not caller_symbol_id:
+                    print(f"  ⚠️  Skipping call without caller_symbol_id: {call.get('caller_name')}")
+                    skipped_count += 1
+                    continue
+                
+                # Look up callee symbol if not provided
+                callee_symbol_id = call.get("callee_symbol_id")
+                if not callee_symbol_id:
+                    callee_name = call.get("callee_name")
+                    callee_file = call.get("callee_file")
+                    
+                    if callee_name and callee_file:
+                        callee_symbol = db.query(Symbol).join(File).filter(
+                            File.repository_id == repository_id,
+                            File.file_path == callee_file,
+                            Symbol.name == callee_name
+                        ).first()
+                        
+                        if callee_symbol:
+                            callee_symbol_id = callee_symbol.id
+                
+                # Create call relationship record
                 call_record = CallRelationship(
                     repository_id=repository_id,
-                    caller_symbol_id=call.get("caller_symbol_id"),
+                    caller_symbol_id=caller_symbol_id,  # ✅ Now guaranteed to be non-null
                     caller_name=call["caller_name"],
                     caller_file=call["caller_file"],
                     callee_name=call["callee_name"],
                     callee_file=call.get("callee_file"),
-                    callee_symbol_id=call.get("callee_symbol_id"),
-                    call_line=call["call_line"],  # FIXED: Use call_line not caller_line
-                    is_external=call["is_external"],
+                    callee_symbol_id=callee_symbol_id,
+                    call_line=call["call_line"],
+                    is_external=call.get("is_external", callee_symbol_id is None),
                 )
                 db.add(call_record)
                 saved_count += 1
+                
             except Exception as e:
                 print(f"  ⚠️  Error saving call: {e}")
+                skipped_count += 1
                 continue
         
         db.commit()
@@ -155,11 +206,14 @@ def extract_call_graph_task(self, repository_id: str):
         print(f"✅ Call graph extraction complete for {repository_id}")
         print(f"   Files analyzed: {len(files_data)}")
         print(f"   Calls extracted: {saved_count}")
+        if skipped_count > 0:
+            print(f"   Calls skipped: {skipped_count} (missing caller symbol)")
         
         return {
             "repository_id": repository_id,
             "files_analyzed": len(files_data),
             "calls_extracted": saved_count,
+            "calls_skipped": skipped_count,
             "status": "completed"
         }
         

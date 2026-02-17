@@ -169,7 +169,10 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                             except Exception:
                                 end_idx = len(lines)
                         end_idx = max(start_idx, min(end_idx, len(lines)))
-                        symbol_code = "\n".join(lines[start_idx:end_line])
+                        
+                        # 🔧 FIX: Use end_idx instead of end_line for slicing
+                        symbol_code = "\n".join(lines[start_idx:end_idx])
+                        
                         quality = analyze_code_quality(symbol_code, language)
                         raw_type = (sym.get("type") or "").strip()
                         type_key = raw_type
