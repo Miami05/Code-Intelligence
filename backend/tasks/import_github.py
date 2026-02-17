@@ -12,7 +12,7 @@ from typing import Optional
 from celery_app import celery_app
 from config import settings
 from database import SessionLocal
-from models.repository import Repository, RepoStatus, RepoSource
+from models.repository import Repository, RepoSource, RepoStatus
 from tasks.parse_repository import parse_repository_task
 from utils.github import get_github_metadata
 
@@ -28,32 +28,21 @@ def validate_github_url(url: str) -> tuple[str, str]:
     """
     if not url.startswith("https://github.com/"):
         raise ValueError("URL must start with https://github.com/")
-    
-    # Remove https://github.com/ and trailing slash
     url_path = url.replace("https://github.com/", "").rstrip("/")
-    
-    # Remove .git suffix if present (proper way, not rstrip!)
     if url_path.endswith(".git"):
         url_path = url_path[:-4]
-    
     parts = url_path.split("/")
-    
     if len(parts) < 2:
         raise ValueError(
             "Invalid GitHub URL format. Expected: https://github.com/owner/repo"
         )
-    
+
     owner, repo = parts[0], parts[1]
-    
-    # Additional cleanup - proper suffix removal (not rstrip!)
-    # rstrip(".git") removes ANY char in {'.','g','i','t'}, not the substring!
-    # This caused "So-Long" to become "So-Lon" (removed the 'g')
+
     if repo.endswith(".git"):
         repo = repo[:-4]
-    
     if not owner or not repo:
         raise ValueError("Owner and repository name cannot be empty")
-    
     return owner, repo
 
 
@@ -109,7 +98,9 @@ def import_github_repository(
         if metadata:
             repo.github_stars = metadata.get("stars", 0)
             repo.github_language = metadata.get("language", "")
-            print(f"   ✅ Metadata: {repo.github_stars} stars, Language: {repo.github_language}")
+            print(
+                f"   ✅ Metadata: {repo.github_stars} stars, Language: {repo.github_language}"
+            )
             db.commit()
         else:
             print(f"   ⚠️  Could not fetch metadata")
@@ -121,7 +112,9 @@ def import_github_repository(
         if token:
             clone_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
         elif settings.github_token:
-            clone_url = f"https://{settings.github_token}@github.com/{owner}/{repo_name}.git"
+            clone_url = (
+                f"https://{settings.github_token}@github.com/{owner}/{repo_name}.git"
+            )
         else:
             clone_url = f"https://github.com/{owner}/{repo_name}.git"
 
