@@ -1,4 +1,9 @@
 import enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .vulnerability import Vulnerability
+
 import uuid
 from datetime import datetime
 
@@ -19,6 +24,7 @@ class RepoStatus(enum.Enum):
 
 class RepoSource(enum.Enum):
     """Source of repository (upload or GitHub import)"""
+
     upload = "upload"
     github = "github"
 
@@ -32,12 +38,9 @@ class Repository(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     upload_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Source of the repository
     source: Mapped[RepoSource] = mapped_column(
         SQLEnum(RepoSource), default=RepoSource.upload, nullable=False, index=True
     )
-
-    # GitHub-specific fields
     github_url: Mapped[str | None] = mapped_column(
         String(500), nullable=True, index=True
     )
@@ -63,6 +66,9 @@ class Repository(Base):
     )
     files = relationship(
         "File", back_populates="repository", cascade="all, delete-orphan"
+    )
+    vulnerabilities = relationship(
+        "Vulnerability", back_populates="repository", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
