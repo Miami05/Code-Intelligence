@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Github, FileCode, TrendingUp, Shield, Search, Network } from 'lucide-react';
+import { Github, FileCode, TrendingUp, Shield, Search, Network, Sparkles } from 'lucide-react';
 import { repositoryApi } from '../services/repositoryApi';
 import { Repository } from '../types/repository';
 import { FilesTab } from '../components/FilesTab';
 import { QualityTab } from '../components/QualityTab';
 import { SecurityTab } from '../components/SecurityTab';
 import CallGraphTab from '../components/CallGraphTab';
+import { AiAssistantTab } from '../components/AiAssistantTab';
 
 export default function RepositoryDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [repository, setRepository] = useState<Repository | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'files' | 'quality' | 'security' | 'search' | 'callgraph'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'quality' | 'security' | 'search' | 'callgraph' | 'ai'>('files');
 
   useEffect(() => {
     if (id) {
@@ -66,6 +67,7 @@ export default function RepositoryDetailsPage() {
     { id: 'quality', label: 'Quality', icon: TrendingUp },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'callgraph', label: 'Call Graph', icon: Network },
+    { id: 'ai', label: 'AI Assistant', icon: Sparkles },
     { id: 'search', label: 'Search', icon: Search },
   ];
 
@@ -168,6 +170,7 @@ export default function RepositoryDetailsPage() {
             {activeTab === 'quality' && <QualityTab />}
             {activeTab === 'security' && <SecurityTab />}
             {activeTab === 'callgraph' && id && <CallGraphTab repositoryId={id} />}
+            {activeTab === 'ai' && <AiAssistantTab />}
             {activeTab === 'search' && (
               <div className="text-center py-12">
                 <Search className="w-16 h-16 text-slate-400 mx-auto mb-4" />
