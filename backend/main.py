@@ -4,7 +4,13 @@ from sqlalchemy import text
 
 from config import settings
 from database import Base, engine
-from routers import recommendations_router, repositories_router, upload_router
+from routers import (
+    ai_assistant_router,
+    chat_router,
+    recommendations_router,
+    repositories_router,
+    upload_router,
+)
 from routers.call_graph import router as call_graph_router
 from routers.github import router as github_router
 from routers.search import router as search_router
@@ -32,6 +38,8 @@ app.include_router(recommendations_router)
 app.include_router(github_router)
 app.include_router(call_graph_router)
 app.include_router(security_router)
+app.include_router(ai_assistant_router)
+app.include_router(chat_router)
 
 
 @app.on_event("startup")
