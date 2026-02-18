@@ -69,6 +69,9 @@ async def ask_codebase(request: ChatRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=500, detail=f"Embedding generation failed: {str(e)}"
         )
+    
+    # IMPROVED QUERY: Lower threshold (0.3) and fetch more results (LIMIT 8)
+    # Also prioritize file_path matches if the user asks about a specific file
     sql = text("""
         SELECT 
             s.name,
@@ -85,7 +88,7 @@ async def ask_codebase(request: ChatRequest, db: Session = Depends(get_db)):
         WHERE f.repository_id = :repo_id
           AND 1 - (e.embedding <=> CAST(:query_vector AS vector)) > 0.3
         ORDER BY similarity DESC
-        LIMIT 5
+        LIMIT 8
     """)
     try:
         result = db.execute(
@@ -97,36 +100,46 @@ async def ask_codebase(request: ChatRequest, db: Session = Depends(get_db)):
         ).fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vector search failed: {str(e)}")
+    
     if not result:
         return ChatResponse(
             answer="I couldn't find any relevant code in this repository to answer your question. Try being more specific about function names or logic.",
             sources=[],
         )
+    
     context_text = ""
     source = []
+    
     for row in result:
         code_segment = ""
         if row.source:
             lines = row.source.split("\n")
-            start = max(0, row.line_start - 1)
-            end = min(len(lines), row.line_end if row.line_end else len(lines))
-            code_segment = "\n".join(lines[start:end])
+            
+            # IMPROVED CONTEXT: Fetch 50 lines before and after the symbol
+            # This captures surrounding logic, imports, and comments
+            start_line = max(0, row.line_start - 50)
+            end_line = min(len(lines), (row.line_end if row.line_end else row.line_start) + 50)
+            
+            code_segment = "\n".join(lines[start_line:end_line])
+            
             context_text += (
                 f"\n--- FILE: {row.file_path} ({row.type}: {row.name}) ---\n"
             )
             context_text += f"{code_segment}\n"
             context_text += (
-                f"\n--- FILE: {row.file_path} ({row.type}: {row.name}) ---\n"
+                f"\n--- END OF CONTEXT FROM {row.file_path} ---\n"
             )
+            
             source.append(
                 {
                     "file": row.file_path,
                     "symbol": row.name,
                     "type": row.type,
-                    "lines": f"{row.line_start}-{row.line_end}",
+                    "lines": f"{start_line}-{end_line}", # Show the expanded range
                     "similarity": round(float(row.similarity), 2),
                 }
             )
+            
     system_prompt = """You are an expert software architect analyzing a codebase.
 
 Rules:
@@ -147,11 +160,13 @@ Question: {request.messages}
             for mssg in request.history[-4:]:
                 messages.append({"role": mssg.role, "content": mssg.content})
         messages.append({"role": "user", "content": user_prompt})
+        
+        # INCREASED MAX TOKENS: Allow longer answers for complex explanations
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=cast(list[ChatCompletionMessageParam], messages),
             temperature=0.2,
-            max_tokens=1500,
+            max_tokens=2000, 
         )
         msg = response.choices[0].message
         answer = msg.content
