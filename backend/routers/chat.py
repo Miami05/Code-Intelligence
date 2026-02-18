@@ -83,7 +83,7 @@ async def ask_codebase(request: ChatRequest, db: Session = Depends(get_db)):
         JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
         JOIN files f ON s.file_id = f.id
         WHERE f.repository_id = :repo_id
-          AND 1 - (e.embedding <=> CAST(:query_vector AS vector)) > 0.6
+          AND 1 - (e.embedding <=> CAST(:query_vector AS vector)) > 0.3
         ORDER BY similarity DESC
         LIMIT 5
     """)
