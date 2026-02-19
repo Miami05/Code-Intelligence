@@ -11,7 +11,7 @@ from models.file import File
 from models.metrics_history import MetricsSnapshot
 from models.symbol import Symbol
 from models.vulnerability import Vulnerability
-from sqlalchemy import distinct, func
+from sqlalchemy import distinct, func, case
 from sqlalchemy.orm import Session
 
 
@@ -63,8 +63,6 @@ class MetricsTracker:
         metrics["total_files"] = int(file_stats.total_files or 0)
         metrics["total_lines"] = int(file_stats.total_lines or 0)
         
-        # Calculate complexity stats
-        # Fix: Use File.repository_id instead of Symbol.file.repository_id
         complexity_stats = (
             self.db.query(
                 func.avg(Symbol.cyclomatic_complexity).label("avg_complexity"),
@@ -104,15 +102,15 @@ class MetricsTracker:
             self.db.query(
                 func.count(CodeSmell.id).label("total"),
                 func.sum(
-                    func.case((CodeSmell.severity == "critical", 1), else_=0)
+                    case((CodeSmell.severity == "critical", 1), else_=0)
                 ).label("critical"),
-                func.sum(func.case((CodeSmell.severity == "high", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == "high", 1), else_=0)).label(
                     "high"
                 ),
-                func.sum(func.case((CodeSmell.severity == "medium", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == "medium", 1), else_=0)).label(
                     "medium"
                 ),
-                func.sum(func.case((CodeSmell.severity == "low", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == "low", 1), else_=0)).label(
                     "low"
                 ),
             )
@@ -129,10 +127,10 @@ class MetricsTracker:
             self.db.query(
                 func.count(Vulnerability.id).label("total"),
                 func.sum(
-                    func.case((Vulnerability.severity == "critical", 1), else_=0)
+                    case((Vulnerability.severity == "critical", 1), else_=0)
                 ).label("critical"),
                 func.sum(
-                    func.case((Vulnerability.severity == "high", 1), else_=0)
+                    case((Vulnerability.severity == "high", 1), else_=0)
                 ).label("high"),
             )
             .filter_by(repository_id=repository_id)
