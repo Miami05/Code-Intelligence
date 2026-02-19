@@ -44,6 +44,12 @@ def list_repositories(
         ],
     }
 
+# Explicitly handle 'import' to prevent it falling into the generic {repository_id} route
+@router.get("/import")
+def get_import_placeholder():
+    """Placeholder for potential API collision with frontend route."""
+    raise HTTPException(status_code=404, detail="This is a frontend route, not an API endpoint.")
+
 
 @router.get("/{repository_id}")
 def get_repository(repository_id: str, db: Session = Depends(get_db)):
@@ -224,8 +230,7 @@ def get_repository_symbols(
         "total_symbols": len(results),
         "filters": {"language": language, "type": type},
         "symbols": [
-            {
-                "symbol_id": symbol.id,
+            {\n                "symbol_id": symbol.id,
                 "name": symbol.name,
                 "type": symbol.type.value,
                 "file_path": file.file_path,
