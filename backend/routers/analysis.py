@@ -239,7 +239,7 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
                         ),
                         "start_line": s.line_start,
                         "end_line": s.line_end,
-                        "parent_id": s.parent_id,
+                        # removed parent_id as it doesn't exist on Symbol model
                     }
                     for s in symbols
                 ]
