@@ -21,6 +21,7 @@ from tasks.generate_embeddings import (
 from tasks.extract_call_graph import (
     extract_call_graph_task as _extract_call_graph_task,
 )
+from utils.docstring_extractor import extract_docstring  # Sprint 9: Docstring extraction
 
 generate_embeddings_for_repository = cast(Task, _generate_embeddings_for_repository)
 extract_call_graph_task = cast(Task, _extract_call_graph_task)
@@ -126,6 +127,8 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
             )
 
         total_symbols = 0
+        total_documented = 0  # Sprint 9: Track documented symbols
+        
         for language, file_paths in files_by_language.items():
             if not file_paths:
                 continue
@@ -153,6 +156,7 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                     db.flush()
                     symbols = parser_func(source, relative_path)
                     print(f"  ✓ {relative_path}: {len(symbols)} symbols")
+                    
                     for sym in symbols:
                         start_line = sym.get("line_start", 1)
                         try:
@@ -174,12 +178,28 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                         symbol_code = "\n".join(lines[start_idx:end_idx])
                         
                         quality = analyze_code_quality(symbol_code, language)
+                        
+                        # Sprint 9: Extract docstring for functions and classes
+                        docstring = None
+                        has_docstring = False
+                        docstring_length = 0
+                        
                         raw_type = (sym.get("type") or "").strip()
+                        # Only extract docstrings for functions and classes
+                        if raw_type in ["function", "class", "procedure"]:
+                            docstring, docstring_length = extract_docstring(
+                                source, language, start_line_int
+                            )
+                            has_docstring = docstring is not None
+                            if has_docstring:
+                                total_documented += 1
+                        
                         type_key = raw_type
                         if type_key == "class":
                             type_key = "class_"
                         if type_key not in SymbolType.__members__:
                             type_key = "function"
+                        
                         symbol_record = Symbol(
                             file_id=file_record.id,
                             name=sym.get("name", "unknown"),
@@ -195,6 +215,10 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                             maintainability_index=quality["maintainability_index"],
                             lines_of_code=quality["lines_of_code"],
                             comment_lines=quality["comment_lines"],
+                            # Sprint 9: Docstring fields
+                            docstring=docstring,
+                            has_docstring=has_docstring,
+                            docstring_length=docstring_length,
                         )
                         db.add(symbol_record)
                         total_symbols += 1
@@ -202,10 +226,16 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
                 except Exception as e:
                     print(f"  ⚠️  Error processing {relative_path}: {e}")
                     continue
+        
         repo.file_count = total_files
         repo.symbol_count = total_symbols
         repo.status = RepoStatus.completed
         db.commit()
+        
+        # Documentation statistics
+        if total_symbols > 0:
+            doc_percentage = (total_documented / total_symbols) * 100
+            print(f"📝 Documentation: {total_documented}/{total_symbols} symbols ({doc_percentage:.1f}%)")
         
         # REMOVED: Don't delete extract_dir yet - needed for call graph extraction
         # if extract_dir:
@@ -227,6 +257,7 @@ def parse_repository_task(self, repository_id: str, zip_path: str):
             "repository_id": repository_id,
             "files_processed": total_files,
             "symbols_extracted": total_symbols,
+            "symbols_documented": total_documented,
             "status": "completed",
         }
     except Exception as e:
