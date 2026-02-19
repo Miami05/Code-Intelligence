@@ -2,7 +2,6 @@
 
 import re
 import uuid
-from collections.abc import MutableMapping
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict
 
@@ -18,10 +17,10 @@ class SmellFinding:
     title: str
     description: str
     suggestion: str
-    start_line: str
-    end_line: str
-    metric_value: Optional[int]
-    metric_threshold: Optional[int]
+    start_line: int
+    end_line: int
+    metric_value: Optional[int] = None
+    metric_threshold: Optional[int] = None
 
 
 class ClassData(TypedDict):
@@ -41,14 +40,68 @@ class CodeSmellDetector:
     def __init__(self):
         pass
 
+    def detect_missing_docstrings(
+        self, file_id: uuid.UUID, symbols: List[Dict]
+    ) -> List[SmellFinding]:
+        """
+        Detect public functions/classes missing docstrings.
+        (Sprint 9 Requirement)
+        """
+        findings = []
+        for symbol in symbols:
+            # Check if docstring is missing (using the field we added in Symbol model)
+            # Note: The 'symbols' dict passed here comes from the router's query
+            # which usually includes model attributes.
+            
+            # Skip if not function or class
+            sym_type = symbol.get("type")
+            if hasattr(sym_type, "value"):
+                sym_type = sym_type.value
+            
+            if str(sym_type) not in ["function", "method", "class"]:
+                continue
+                
+            # Skip private/internal methods (starting with _)
+            name = symbol.get("name", "")
+            if name.startswith("_") and not name.startswith("__"):
+                continue
+
+            # Check for missing docstring
+            # We check both explicit 'has_docstring' (if available) or raw 'docstring' content
+            has_doc = symbol.get("has_docstring")
+            doc_content = symbol.get("docstring")
+            
+            if has_doc is False or (has_doc is None and not doc_content):
+                findings.append(
+                    SmellFinding(
+                        file_id=file_id,
+                        symbol_id=symbol.get("id"),
+                        smell_type="missing_docstring",
+                        severity="low",
+                        title=f"Missing Docstring: {name}",
+                        description=f"Public {sym_type} '{name}' is missing documentation.",
+                        suggestion="Add a docstring explaining the purpose, parameters, and return value.",
+                        start_line=symbol.get("start_line", 0),
+                        end_line=symbol.get("end_line", 0),
+                        metric_value=0,
+                        metric_threshold=1,
+                    )
+                )
+        return findings
+
     def detect_long_methods(
         self, file_id: uuid.UUID, symbols: List[Dict]
     ) -> List[SmellFinding]:
         """Detect methods/functions that are too long"""
         findings = []
         for symbol in symbols:
-            if symbol.get("type") not in ["function", "method"]:
+            sym_type = symbol.get("type")
+            if hasattr(sym_type, "value"):
+                sym_type = sym_type.value
+            
+            if str(sym_type) not in ["function", "method"]:
                 continue
+                
             line_count = symbol.get("end_line", 0) - symbol.get("start_line", 0)
             if line_count > self.LONG_METHOD_LINES:
                 severity = (
@@ -79,13 +132,18 @@ class CodeSmellDetector:
 
         classes: dict[str, ClassData] = {}
         for symbol in symbols:
-            if symbol.get("type") == "class":
+            sym_type = symbol.get("type")
+            if hasattr(sym_type, "value"):
+                sym_type = sym_type.value
+            
+            if str(sym_type) == "class":
                 class_id = str(symbol["id"])
                 classes[class_id] = {"symbol": symbol, "methods": []}
-            elif symbol.get("type") in ["method", "function"]:
+            elif str(sym_type) in ["method", "function"]:
                 parent_id = symbol.get("parent_id")
-                if parent_id and parent_id in classes:
-                    classes[parent_id]["methods"].append(symbol)
+                if parent_id and str(parent_id) in classes:
+                    classes[str(parent_id)]["methods"].append(symbol)
+                    
         for class_id, class_data in classes.items():
             class_symbol = class_data["symbol"]
             method_count = len(class_data["methods"])
@@ -114,21 +172,10 @@ class CodeSmellDetector:
                     description_parts.append(
                         f"{class_lines} lines (threshold: {self.GOD_CLASS_LINES})"
                     )
-                if (
-                    method_count > self.GOD_CLASS_METHODS
-                    and class_lines > self.GOD_CLASS_LINES
-                ):
-                    metric_value = method_count
-                    metric_threshold = self.GOD_CLASS_METHODS
-                    metric_name = "methods"
-                elif method_count > self.GOD_CLASS_METHODS:
-                    metric_value = method_count
-                    metric_threshold = self.GOD_CLASS_METHODS
-                    metric_name = "methods"
-                else:
-                    metric_value = class_lines
-                    metric_threshold = self.GOD_CLASS_LINES
-                    metric_name = "lines"
+                
+                metric_value = method_count
+                metric_threshold = self.GOD_CLASS_METHODS
+                
                 findings.append(
                     SmellFinding(
                         file_id=file_id,
@@ -154,15 +201,32 @@ class CodeSmellDetector:
         than from their own class.
         """
         findings = []
+        file_lines = content.splitlines()
+        
         for symbol in symbols:
-            if symbol.get("type") not in ["method", "function"]:
+            sym_type = symbol.get("type")
+            if hasattr(sym_type, "value"):
+                sym_type = sym_type.value
+                
+            if str(sym_type) not in ["method", "function"]:
                 continue
+                
             start_line = symbol.get("start_line", 0)
             end_line = symbol.get("end_line", 0)
-            lines = content.split("\n")[start_line - 1 : end_line]
+            
+            if start_line > len(file_lines) or end_line > len(file_lines):
+                continue
+                
+            # Adjust to 0-based index
+            lines = file_lines[max(0, start_line - 1) : end_line]
             method_body = "\n".join(lines)
+            
             self_refs = len(re.findall(r"\bself\.|\bthis\.", method_body))
-            external_refs = len(re.findall(r"\b\w+\.\w+", method_body)) - self_refs
+            
+            # Simple heuristic for external access (Object.property)
+            # Excluding self/this and common built-ins
+            external_refs = len(re.findall(r"\b[a-zA-Z_]\w+\.\w+", method_body)) - self_refs
+            
             if external_refs > 5 and external_refs > self_refs * 2:
                 findings.append(
                     SmellFinding(
@@ -176,7 +240,7 @@ class CodeSmellDetector:
                         start_line=start_line,
                         end_line=end_line,
                         metric_value=external_refs,
-                        metric_threshold=self_refs * 2,
+                        metric_threshold=self_refs * 2 if self_refs > 0 else 5,
                     )
                 )
         return findings
@@ -186,7 +250,12 @@ class CodeSmellDetector:
     ) -> List[SmellFinding]:
         """Scan a single file for all code smells"""
         findings = []
-        file_lines = len(content.split("\n"))
+        file_lines = len(content.splitlines())
+        
+        # Sprint 9: Missing Docstrings
+        findings.extend(self.detect_missing_docstrings(file_id, symbols))
+        
+        # Existing smells
         findings.extend(self.detect_long_methods(file_id, symbols))
         findings.extend(
             self.detect_god_classes(file_id, file_path, symbols, file_lines)
