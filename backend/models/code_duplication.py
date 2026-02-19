@@ -20,7 +20,7 @@ class CodeDuplication(Base):
     )
     repository_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("repositoriers.id", ondelete="CASCADE"),
+        ForeignKey("repositories.id", ondelete="CASCADE"),
         index=True,
     )
     file1_id: Mapped[uuid.UUID] = mapped_column(
