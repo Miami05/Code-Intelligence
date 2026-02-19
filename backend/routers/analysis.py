@@ -403,7 +403,7 @@ async def get_undocumented_symbols(
 async def generate_documentation(
     repository_id: uuid.UUID, max_files: int = 10, db: Session = Depends(get_db)
 ):
-    """Generate documentation for undocumented functions"""
+    """Generate documentation for undocumented functions and mark them as documented"""
 
     repo = db.query(Repository).filter_by(id=repository_id).first()
     if not repo:
@@ -475,10 +475,19 @@ async def generate_documentation(
         file_data, max_files=max_files
     )
 
+    # FIXED: Mark symbols as documented in the database
+    documented_symbol_ids = [doc["symbol_id"] for doc in documentation if doc.get("symbol_id")]
+    if documented_symbol_ids:
+        db.query(Symbol).filter(Symbol.id.in_(documented_symbol_ids)).update(
+            {"has_docstring": True}, synchronize_session=False
+        )
+        db.commit()
+
     return {
         "repository_id": str(repository_id),
         "files_processed": len(file_data),
         "functions_documented": len(documentation),
+        "symbols_marked_as_documented": len(documented_symbol_ids),
         "documentation": documentation,
     }
 
