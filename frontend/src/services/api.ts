@@ -38,9 +38,12 @@ export const searchAPI = {
   },
 
   semanticSearch: async (query: string, repositoryId?: string) => {
-    const response = await apiInstance.post("/api/search/semantic", {
-      query,
-      repository_id: repositoryId,
+    // Backend expects query parameters, not JSON body for this endpoint
+    const response = await apiInstance.post("/api/search/semantic", null, {
+      params: {
+        query,
+        repository_id: repositoryId,
+      },
     });
     return response.data;
   },
