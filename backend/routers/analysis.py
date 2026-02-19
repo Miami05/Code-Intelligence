@@ -62,11 +62,17 @@ async def scan_duplications_task(repository_id: uuid.UUID):
 
         file_data = []
         for file in files:
-            # Read file content (assuming files are stored)
-            try:
-                with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-
+            # Prefer source from DB, fallback to disk (mostly for local dev)
+            content = file.source
+            if not content:
+                try:
+                    with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                except Exception as e:
+                    # Skip files we can't read
+                    continue
+            
+            if content:
                 file_data.append(
                     {
                         "id": file.id,
@@ -75,41 +81,39 @@ async def scan_duplications_task(repository_id: uuid.UUID):
                         "language": file.language or "python",
                     }
                 )
-            except Exception as e:
-                print(f"Error reading file {file.file_path}: {e}")
-                continue
 
         # Run duplication scanner
-        scanner = DuplicateScanner()
-        duplications = scanner.scan_repository(file_data)
+        if file_data:
+            scanner = DuplicateScanner()
+            duplications = scanner.scan_repository(file_data)
 
-        # Clear existing duplications for this repo
-        db.execute(
-            delete(CodeDuplication).where(
-                CodeDuplication.repository_id == repository_id
+            # Clear existing duplications for this repo
+            db.execute(
+                delete(CodeDuplication).where(
+                    CodeDuplication.repository_id == repository_id
+                )
             )
-        )
-        db.commit()
+            db.commit()
 
-        # Save to database
-        for dup in duplications:
-            db_dup = CodeDuplication(
-                repository_id=repository_id,
-                file1_id=dup["file1_id"],
-                file1_start_line=dup["file1_start_line"],
-                file1_end_line=dup["file1_end_line"],
-                file2_id=dup["file2_id"],
-                file2_start_line=dup["file2_start_line"],
-                file2_end_line=dup["file2_end_line"],
-                similarity_score=dup["similarity_score"],
-                duplicate_lines=dup["duplicate_lines"],
-                duplicate_tokens=dup["duplicate_tokens"],
-                code_snippet=dup["code_snippet"],
-                hash_signature=dup["hash_signature"],
-            )
-            db.add(db_dup)
+            # Save to database
+            for dup in duplications:
+                db_dup = CodeDuplication(
+                    repository_id=repository_id,
+                    file1_id=dup["file1_id"],
+                    file1_start_line=dup["file1_start_line"],
+                    file1_end_line=dup["file1_end_line"],
+                    file2_id=dup["file2_id"],
+                    file2_start_line=dup["file2_start_line"],
+                    file2_end_line=dup["file2_end_line"],
+                    similarity_score=dup["similarity_score"],
+                    duplicate_lines=dup["duplicate_lines"],
+                    duplicate_tokens=dup["duplicate_tokens"],
+                    code_snippet=dup["code_snippet"],
+                    hash_signature=dup["hash_signature"],
+                )
+                db.add(db_dup)
 
-        db.commit()
+            db.commit()
     except Exception as e:
         db.rollback()
         print(f"scan_duplications_task failed for repo {repository_id}: {e}")
@@ -212,10 +216,18 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
 
         file_data = []
         for file in files:
-            try:
-                with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
+            content = file.source
+            if not content:
+                try:
+                    with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                except Exception:
+                    continue
+            
+            if not content:
+                continue
 
+            try:
                 # Get symbols for this file
                 symbols = db.query(Symbol).filter_by(file_id=file.id).all()
                 symbol_data = [
@@ -241,36 +253,37 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
                     }
                 )
             except Exception as e:
-                print(f"Error reading file {file.file_path}: {e}")
+                print(f"Error preparing file data for {file.file_path}: {e}")
                 continue
 
-        # Run code smell detector
-        detector = CodeSmellDetector()
-        smells = detector.scan_repository(file_data)
+        if file_data:
+            # Run code smell detector
+            detector = CodeSmellDetector()
+            smells = detector.scan_repository(file_data)
 
-        # Clear existing smells
-        db.execute(delete(CodeSmell).where(CodeSmell.repository_id == repository_id))
-        db.commit()
+            # Clear existing smells
+            db.execute(delete(CodeSmell).where(CodeSmell.repository_id == repository_id))
+            db.commit()
 
-        # Save to database
-        for smell in smells:
-            db_smell = CodeSmell(
-                repository_id=repository_id,
-                file_id=smell.file_id,
-                symbol_id=smell.symbol_id,
-                smell_type=smell.smell_type,
-                severity=smell.severity,
-                title=smell.title,
-                description=smell.description,
-                suggestion=smell.suggestion,
-                start_line=smell.start_line,
-                end_line=smell.end_line,
-                metric_value=smell.metric_value,
-                metric_threshold=smell.metric_threshold,
-            )
-            db.add(db_smell)
+            # Save to database
+            for smell in smells:
+                db_smell = CodeSmell(
+                    repository_id=repository_id,
+                    file_id=smell.file_id,
+                    symbol_id=smell.symbol_id,
+                    smell_type=smell.smell_type,
+                    severity=smell.severity,
+                    title=smell.title,
+                    description=smell.description,
+                    suggestion=smell.suggestion,
+                    start_line=smell.start_line,
+                    end_line=smell.end_line,
+                    metric_value=smell.metric_value,
+                    metric_threshold=smell.metric_threshold,
+                )
+                db.add(db_smell)
 
-        db.commit()
+            db.commit()
     except Exception as e:
         db.rollback()
         print(f"scan_code_smells_task failed for repo {repository_id}: {e}")
@@ -410,10 +423,18 @@ async def generate_documentation(
 
     file_data = []
     for file in files:
-        try:
-            with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
+        content = file.source
+        if not content:
+            try:
+                with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except Exception:
+                continue
+        
+        if not content:
+            continue
 
+        try:
             symbols = db.query(Symbol).filter_by(file_id=file.id).all()
             symbol_data = [
                 {
@@ -439,6 +460,15 @@ async def generate_documentation(
             )
         except Exception:
             continue
+
+    if not file_data:
+        return {
+            "repository_id": str(repository_id),
+            "files_processed": 0,
+            "functions_documented": 0,
+            "documentation": [],
+            "message": "No undocumented symbols found or content unavailable"
+        }
 
     doc_service = AutoDocumentationService()
     documentation = await doc_service.document_repository(
