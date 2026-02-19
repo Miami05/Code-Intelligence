@@ -23,6 +23,7 @@ class SmellType(enum.Enum):
     LONG_PARAMETER_LIST = "long_parameter_list"
     DUPLICATE_CODE = "duplicate_code"
     DEAD_CODE = "dead_code"
+    MISSING_DOCSTRING = "missing_docstring"  # Sprint 9: Missing documentation
 
 
 class SmellSeverity(enum.Enum):
