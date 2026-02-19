@@ -40,7 +40,7 @@ class MetricsSnapshot(Base):
     critical_vulnerability: Mapped[int] = mapped_column(Integer, default=0)
     high_vulnerabilities: Mapped[int] = mapped_column(Integer, default=0)
     quality_score: Mapped[float] = mapped_column(Float, default=0.0)
-    metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    snapshot_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
