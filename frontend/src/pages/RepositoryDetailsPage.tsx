@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Github, FileCode, TrendingUp, Shield, Search, Network, Sparkles } from 'lucide-react';
+import { Github, FileCode, TrendingUp, Shield, Search, Network, Sparkles, BarChart2 } from 'lucide-react';
 import { repositoryApi } from '../services/repositoryApi';
 import { Repository } from '../types/repository';
 import { FilesTab } from '../components/FilesTab';
@@ -89,17 +89,28 @@ export default function RepositoryDetailsPage() {
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
                   {repository.name}
                 </h1>
-                {repository.github_url && (
-                  <a
-                    href={repository.github_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2"
+                <div className="flex flex-wrap gap-4 items-center">
+                  {repository.github_url && (
+                    <a
+                      href={repository.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2"
+                    >
+                      <Github className="w-4 h-4" />
+                      View on GitHub
+                    </a>
+                  )}
+                  
+                  {/* Sprint 9: Analysis Dashboard Button - High Visibility */}
+                  <Link 
+                    to={`/analysis/${id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors shadow-md"
                   >
-                    <Github className="w-4 h-4" />
-                    View on GitHub
-                  </a>
-                )}
+                    <BarChart2 className="w-4 h-4" />
+                    Open Analysis Dashboard
+                  </Link>
+                </div>
               </div>
             </div>
             <span

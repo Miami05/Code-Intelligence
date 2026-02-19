@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 
 from database import Base
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -24,8 +24,10 @@ class Symbol(Base):
     """Symbol table - stores functions, classes, etc."""
 
     __tablename__ = "symbols"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    file_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    file_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("files.id", ondelete="CASCADE"),
         nullable=False,
@@ -40,6 +42,11 @@ class Symbol(Base):
     maintainability_index = Column(Float, nullable=True)
     lines_of_code = Column(Integer, nullable=True)
     comment_lines = Column(Integer, nullable=True)
+    docstring: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    has_docstring: Mapped[bool] = mapped_column(
+        Boolean, default=False, index=True, server_default="false"
+    )
+    docstring_length: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )

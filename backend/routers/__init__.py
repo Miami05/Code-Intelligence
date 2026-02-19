@@ -1,4 +1,5 @@
 from .ai_assistant import router as ai_assistant_router
+from .analysis import router as analysis_router
 from .chat import router as chat_router
 from .github import router as github_router
 from .recommendations import router as recommendations_router
@@ -15,4 +16,5 @@ __all__ = [
     "security_router",
     "ai_assistant_router",
     "chat_router",
+    "analysis_router",
 ]

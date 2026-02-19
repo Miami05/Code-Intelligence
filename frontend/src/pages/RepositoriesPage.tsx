@@ -48,7 +48,7 @@ export default function RepositoriesPage() {
             </p>
           </div>
           <Link
-            to="/repositories/import"
+            to="/import"
             className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg transition-all hover:-translate-y-1 inline-flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -100,7 +100,7 @@ export default function RepositoriesPage() {
               {searchQuery ? 'Try a different search term' : 'Import your first repository'}
             </p>
             <Link
-              to="/repositories/import"
+              to="/import"
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all"
             >
               <Plus className="w-5 h-5" />

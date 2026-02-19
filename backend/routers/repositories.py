@@ -44,6 +44,12 @@ def list_repositories(
         ],
     }
 
+# Explicitly handle 'import' to prevent it falling into the generic {repository_id} route
+@router.get("/import")
+def get_import_placeholder():
+    """Placeholder for potential API collision with frontend route."""
+    raise HTTPException(status_code=404, detail="This is a frontend route, not an API endpoint.")
+
 
 @router.get("/{repository_id}")
 def get_repository(repository_id: str, db: Session = Depends(get_db)):
