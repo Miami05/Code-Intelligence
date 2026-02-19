@@ -1,7 +1,7 @@
 """create code_smells table
 
 Revision ID: create_code_smells
-Revises: 7c9c52b4cdbe
+Revises: 20260219_add_docstring_tracking
 Create Date: 2026-02-19 21:45:00.000000
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'create_code_smells'
-down_revision: Union[str, None] = '7c9c52b4cdbe'
+down_revision: Union[str, None] = '20260219_add_docstring_tracking'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -34,7 +34,10 @@ def upgrade() -> None:
     else:
         # Enum exists, make sure missing_docstring is in it
         with op.get_context().autocommit_block():
-            op.execute("ALTER TYPE smelltype ADD VALUE IF NOT EXISTS 'missing_docstring'")
+            try:
+                op.execute("ALTER TYPE smelltype ADD VALUE IF NOT EXISTS 'missing_docstring'")
+            except Exception:
+                pass  # Value already exists
     
     # Check and create smellseverity enum
     result = conn.execute(sa.text(
