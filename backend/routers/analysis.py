@@ -5,15 +5,7 @@ from typing import Dict, List, Optional
 
 from database import SessionLocal, get_db
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from models import (
-    CodeDuplication,
-    CodeSmell,
-    File,
-    MetricsSnapshot,
-    Repository,
-    SmellSeverity,
-    Symbol,
-)
+from models import CodeDuplication, CodeSmell, File, Repository, SmellSeverity, Symbol
 from models.code_smell import SmellType
 from models.symbol import SymbolType
 from services.auto_documentation import AutoDocumentationService
@@ -66,12 +58,14 @@ async def scan_duplications_task(repository_id: uuid.UUID):
             content = file.source
             if not content:
                 try:
-                    with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(
+                        file.file_path, "r", encoding="utf-8", errors="ignore"
+                    ) as f:
                         content = f.read()
                 except Exception as e:
                     # Skip files we can't read
                     continue
-            
+
             if content:
                 file_data.append(
                     {
@@ -184,9 +178,6 @@ async def get_duplications(
     }
 
 
-# ----- Code Smell Endpoints -----
-
-
 @router.post("/code-smells/{repository_id}")
 async def scan_code_smells(
     repository_id: uuid.UUID,
@@ -219,11 +210,13 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
             content = file.source
             if not content:
                 try:
-                    with open(file.file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(
+                        file.file_path, "r", encoding="utf-8", errors="ignore"
+                    ) as f:
                         content = f.read()
                 except Exception:
                     continue
-            
+
             if not content:
                 continue
 
@@ -262,7 +255,9 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
             smells = detector.scan_repository(file_data)
 
             # Clear existing smells
-            db.execute(delete(CodeSmell).where(CodeSmell.repository_id == repository_id))
+            db.execute(
+                delete(CodeSmell).where(CodeSmell.repository_id == repository_id)
+            )
             db.commit()
 
             # Save to database
@@ -430,7 +425,7 @@ async def generate_documentation(
                     content = f.read()
             except Exception:
                 continue
-        
+
         if not content:
             continue
 
@@ -467,7 +462,7 @@ async def generate_documentation(
             "files_processed": 0,
             "functions_documented": 0,
             "documentation": [],
-            "message": "No undocumented symbols found or content unavailable"
+            "message": "No undocumented symbols found or content unavailable",
         }
 
     doc_service = AutoDocumentationService()
@@ -476,7 +471,9 @@ async def generate_documentation(
     )
 
     # FIXED: Mark symbols as documented in the database
-    documented_symbol_ids = [doc["symbol_id"] for doc in documentation if doc.get("symbol_id")]
+    documented_symbol_ids = [
+        doc["symbol_id"] for doc in documentation if doc.get("symbol_id")
+    ]
     if documented_symbol_ids:
         db.query(Symbol).filter(Symbol.id.in_(documented_symbol_ids)).update(
             {"has_docstring": True}, synchronize_session=False
