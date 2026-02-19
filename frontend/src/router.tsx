@@ -1,12 +1,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import App from './App';
-import { HomePage } from './pages/HomePage';
-import { RepositoriesPage } from './pages/RepositoriesPage';
-import { RepositoryDetailsPage } from './pages/RepositoryDetailsPage';
-import { SearchPage } from './pages/SearchPage';
-import { GitHubImportPage } from './pages/GitHubImportPage';
-import { CodeViewerPage } from './pages/CodeViewerPage';
-import { CallGraphFullPage } from './pages/CallGraphFullPage';
+import HomePage from './pages/HomePage';
+import RepositoriesPage from './pages/RepositoriesPage';
+import RepositoryDetailsPage from './pages/RepositoryDetailsPage';
+import SearchPage from './pages/SearchPage';
+import GitHubImportPage from './pages/GitHubImportPage';
+import CodeViewerPage from './pages/CodeViewerPage';
+import CallGraphFullPage from './pages/CallGraphFullPage';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 
 export const router = createBrowserRouter([
