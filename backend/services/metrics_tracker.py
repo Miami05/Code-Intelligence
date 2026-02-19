@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List
 
 from models.code_duplication import CodeDuplication
-from models.code_smell import CodeSmell
+from models.code_smell import CodeSmell, SmellSeverity
 from models.file import File
 from models.metrics_history import MetricsSnapshot
 from models.symbol import Symbol
@@ -102,15 +102,15 @@ class MetricsTracker:
             self.db.query(
                 func.count(CodeSmell.id).label("total"),
                 func.sum(
-                    case((CodeSmell.severity == "critical", 1), else_=0)
+                    case((CodeSmell.severity == SmellSeverity.CRITICAL, 1), else_=0)
                 ).label("critical"),
-                func.sum(case((CodeSmell.severity == "high", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.HIGH, 1), else_=0)).label(
                     "high"
                 ),
-                func.sum(case((CodeSmell.severity == "medium", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.MEDIUM, 1), else_=0)).label(
                     "medium"
                 ),
-                func.sum(case((CodeSmell.severity == "low", 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.LOW, 1), else_=0)).label(
                     "low"
                 ),
             )
