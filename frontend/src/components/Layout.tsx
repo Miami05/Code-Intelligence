@@ -97,7 +97,8 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Main Content */}\n      <main>{children}</main>
+      {/* Main Content */}
+      <main>{children}</main>
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 mt-20 py-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
