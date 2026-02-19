@@ -62,6 +62,9 @@ class MetricsTracker:
         )
         metrics["total_files"] = int(file_stats.total_files or 0)
         metrics["total_lines"] = int(file_stats.total_lines or 0)
+        
+        # Calculate complexity stats
+        # Fix: Use File.repository_id instead of Symbol.file.repository_id
         complexity_stats = (
             self.db.query(
                 func.avg(Symbol.cyclomatic_complexity).label("avg_complexity"),
@@ -70,7 +73,7 @@ class MetricsTracker:
             )
             .join(File, Symbol.file_id == File.id)
             .filter(
-                Symbol.file.repository_id == repository_id,
+                File.repository_id == repository_id,
                 Symbol.cyclomatic_complexity > 10,
             )
             .one()
@@ -80,6 +83,7 @@ class MetricsTracker:
         metrics["high_complexity_count"] = float(
             complexity_stats.high_complexity_count or 0.0
         )
+        
         dup_stats = (
             self.db.query(
                 func.count(CodeDuplication.id).label("count"),
@@ -95,6 +99,7 @@ class MetricsTracker:
             if metrics["total_lines"] > 0
             else 0.0
         )
+        
         smell_stats = (
             self.db.query(
                 func.count(CodeSmell.id).label("total"),
@@ -136,9 +141,7 @@ class MetricsTracker:
         metrics["vulnerability_count"] = vuln_stats.total or 0
         metrics["critical_vulnerabilities"] = vuln_stats.critical or 0
         metrics["high_vulnerabilities"] = vuln_stats.high or 0
-        metrics["vulnerability_count"] = vuln_stats.total or 0
-        metrics["critical_vulnerabilities"] = vuln_stats.critical or 0
-        metrics["high_vulnerabilities"] = vuln_stats.high or 0
+        
         metrics["quality_score"] = self.calculate_qualty_score(metrics)
         snapshot = MetricsSnapshot(repository_id=repository_id, **metrics)
         self.db.add(snapshot)
