@@ -42,12 +42,11 @@ class Symbol(Base):
     maintainability_index = Column(Float, nullable=True)
     lines_of_code = Column(Integer, nullable=True)
     comment_lines = Column(Integer, nullable=True)
-    
-    # Sprint 9: Docstring tracking for auto-documentation
     docstring: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    has_docstring: Mapped[bool] = mapped_column(Boolean, default=False, index=True, server_default="false")
+    has_docstring: Mapped[bool] = mapped_column(
+        Boolean, default=False, index=True, server_default="false"
+    )
     docstring_length: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
