@@ -230,7 +230,8 @@ def get_repository_symbols(
         "total_symbols": len(results),
         "filters": {"language": language, "type": type},
         "symbols": [
-            {\n                "symbol_id": symbol.id,
+            {
+                "symbol_id": symbol.id,
                 "name": symbol.name,
                 "type": symbol.type.value,
                 "file_path": file.file_path,
