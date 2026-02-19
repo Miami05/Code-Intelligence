@@ -89,7 +89,7 @@ export default function RepositoryDetailsPage() {
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
                   {repository.name}
                 </h1>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4 items-center">
                   {repository.github_url && (
                     <a
                       href={repository.github_url}
@@ -101,10 +101,11 @@ export default function RepositoryDetailsPage() {
                       View on GitHub
                     </a>
                   )}
-                  {/* Sprint 9: Analysis Dashboard Button */}
+                  
+                  {/* Sprint 9: Analysis Dashboard Button - High Visibility */}
                   <Link 
                     to={`/analysis/${id}`}
-                    className="text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-2 font-semibold"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors shadow-md"
                   >
                     <BarChart2 className="w-4 h-4" />
                     Open Analysis Dashboard
