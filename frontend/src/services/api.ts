@@ -29,6 +29,14 @@ apiInstance.interceptors.response.use(
   },
 );
 
+interface SemanticSearchOptions {
+  query: string;
+  repository_id?: string;
+  threshold?: number;
+  language?: string;
+  limit?: number;
+}
+
 export const searchAPI = {
   search: async (query: string) => {
     const response = await apiInstance.get("/api/search", {
@@ -37,13 +45,20 @@ export const searchAPI = {
     return response.data;
   },
 
-  semanticSearch: async (query: string, repositoryId?: string) => {
+  semanticSearch: async (options: SemanticSearchOptions | string, repoId?: string) => {
+    // Handle both old signature (string, string) and new signature (object)
+    let params: any = {};
+    
+    if (typeof options === 'string') {
+      params.query = options;
+      if (repoId) params.repository_id = repoId;
+    } else {
+      params = { ...options };
+    }
+
     // Backend expects query parameters, not JSON body for this endpoint
     const response = await apiInstance.post("/api/search/semantic", null, {
-      params: {
-        query,
-        repository_id: repositoryId,
-      },
+      params: params,
     });
     return response.data;
   },
