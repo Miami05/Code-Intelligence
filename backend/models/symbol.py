@@ -24,8 +24,10 @@ class Symbol(Base):
     """Symbol table - stores functions, classes, etc."""
 
     __tablename__ = "symbols"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    file_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    file_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("files.id", ondelete="CASCADE"),
         nullable=False,
