@@ -98,19 +98,20 @@ class MetricsTracker:
             else 0.0
         )
         
+        # Use .value to get the string value instead of the enum name
         smell_stats = (
             self.db.query(
                 func.count(CodeSmell.id).label("total"),
                 func.sum(
-                    case((CodeSmell.severity == SmellSeverity.CRITICAL, 1), else_=0)
+                    case((CodeSmell.severity == SmellSeverity.CRITICAL.value, 1), else_=0)
                 ).label("critical"),
-                func.sum(case((CodeSmell.severity == SmellSeverity.HIGH, 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.HIGH.value, 1), else_=0)).label(
                     "high"
                 ),
-                func.sum(case((CodeSmell.severity == SmellSeverity.MEDIUM, 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.MEDIUM.value, 1), else_=0)).label(
                     "medium"
                 ),
-                func.sum(case((CodeSmell.severity == SmellSeverity.LOW, 1), else_=0)).label(
+                func.sum(case((CodeSmell.severity == SmellSeverity.LOW.value, 1), else_=0)).label(
                     "low"
                 ),
             )
