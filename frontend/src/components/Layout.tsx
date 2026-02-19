@@ -66,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Import Button */}
             <Link
-              to="/repositories/import"
+              to="/import"
               className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 flex items-center gap-2"
             >
               <Github className="w-4 h-4" />
@@ -97,8 +97,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main>{children}</main>
+      {/* Main Content */}\n      <main>{children}</main>
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 mt-20 py-8 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
