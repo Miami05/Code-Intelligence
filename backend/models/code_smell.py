@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
-class SmellType(enum.Enum):
+class SmellType(str, enum.Enum):
     """Types of code smells"""
 
     LONG_METHOD = "long_method"
@@ -26,7 +26,7 @@ class SmellType(enum.Enum):
     MISSING_DOCSTRING = "missing_docstring"  # Sprint 9: Missing documentation
 
 
-class SmellSeverity(enum.Enum):
+class SmellSeverity(str, enum.Enum):
     """Severity levels for code smells"""
 
     LOW = "low"
@@ -55,10 +55,14 @@ class CodeSmell(Base):
         index=True,
     )
     smell_type: Mapped[SmellType] = mapped_column(
-        SQLENUM(SmellType), nullable=False, index=True
+        SQLENUM(SmellType, native_enum=False, values_callable=lambda x: [e.value for e in x]), 
+        nullable=False, 
+        index=True
     )
     severity: Mapped[SmellSeverity] = mapped_column(
-        SQLENUM(SmellSeverity), nullable=False, index=True
+        SQLENUM(SmellSeverity, native_enum=False, values_callable=lambda x: [e.value for e in x]), 
+        nullable=False, 
+        index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
