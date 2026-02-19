@@ -1,7 +1,7 @@
 """Add metrics_snapshots table
 
 Revision ID: f51a6709cc45
-Revises: 20260219_add_smell_enum
+Revises: 20260219_add_docstring_tracking
 Create Date: 2026-02-19 15:33:17.691408+00:00
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'f51a6709cc45'
-down_revision: Union[str, None] = '20260219_add_smell_enum'
+down_revision: Union[str, None] = '20260219_add_docstring_tracking'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
