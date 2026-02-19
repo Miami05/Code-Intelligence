@@ -21,7 +21,7 @@ class AutoDocumentationService:
         Note: The caller usually filters by database 'has_docstring' first.
         """
         language = (language or "").lower().strip()
-        
+
         # Normalize language names
         aliases = {
             "asm": "assembly",
@@ -46,7 +46,7 @@ class AutoDocumentationService:
             return bool(re.search(r"(?m)^\s*\*>|(?m)^.{6}\*", function_code))
         elif language == "assembly":
             return bool(re.search(r"(?m)^\s*[;#]", function_code))
-        
+
         return False
 
     async def generate_docstring(
@@ -57,7 +57,7 @@ class AutoDocumentationService:
         context: Optional[str] = None,
     ) -> str:
         """Generate docstring for a function using AI"""
-        
+
         prompt = f"""Generate documentation for the following {language} function.
 
 Function name: {function_name}
@@ -95,7 +95,7 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
             )
             content = response.choices[0].message.content
             docstring = (content or "").strip()
-            
+
             # Cleanup: remove markdown code fences if LLM added them
             if docstring.startswith("```"):
                 # Remove first line (```language)
@@ -104,7 +104,7 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
                     docstring = "\n".join(lines[1:])
                 if docstring.endswith("```"):
                     docstring = docstring[:-3]
-            
+
             return docstring.strip()
         except Exception as e:
             print(f"Error generating docstring for {function_name}: {e}")
@@ -119,41 +119,34 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
         Returns:
             Dict with 'symbol_id', 'docstring', 'line_number' or None if skipped
         """
-        # Ensure we are looking at a valid symbol type
         valid_types = ["function", "method", "class", "procedure"]
         symbol_type = symbol.get("type", "")
-        # Handle enum value if it's an object, or string if raw
         if hasattr(symbol_type, "value"):
-             symbol_type = symbol_type.value
-        
+            symbol_type = symbol_type.value
         if str(symbol_type) not in valid_types:
             return None
 
         start_line = symbol.get("start_line", 0)
         end_line = symbol.get("end_line", 0)
-        
+
         if start_line < 1:
             return None
 
         lines = file_content.splitlines()
-        
-        # Safety check for line numbers
+
         if start_line > len(lines):
             return None
-            
-        # Extract code snippet (context)
-        # We take the function body plus a bit of context if needed
-        # Adjust 0-based index vs 1-based line number
+
         start_idx = max(0, start_line - 1)
-        end_idx = min(len(lines), end_line) if end_line else min(len(lines), start_idx + 50)
-        
-        # Limit context to avoid token limits
+        end_idx = (
+            min(len(lines), end_line) if end_line else min(len(lines), start_idx + 50)
+        )
+
         if end_idx - start_idx > 200:
-             end_idx = start_idx + 200
-        
+            end_idx = start_idx + 200
+
         function_code = "\n".join(lines[start_idx:end_idx])
 
-        # Double check if it's already documented (in case DB is stale)
         if self.is_documented(function_code, language):
             return None
 
@@ -167,7 +160,7 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
             "symbol_id": symbol.get("id"),
             "symbol_name": symbol.get("name"),
             "docstring": docstring,
-            "insert_line": start_line, 
+            "insert_line": start_line,
             "file_id": symbol.get("file_id"),
         }
 
@@ -182,15 +175,14 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
         """Generate documentation for all undocumented functions in a file"""
         documentation = []
         for symbol in symbols:
-            # Add file_id to symbol dict if missing, for convenience
             if "file_id" not in symbol:
                 symbol["file_id"] = file_id
-            
+
             doc = await self.document_symbol(symbol, content, language)
             if doc:
                 doc["file_path"] = file_path
                 documentation.append(doc)
-                
+
         return documentation
 
     async def document_repository(
@@ -204,19 +196,17 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
             max_files: Maximum number of files to process
         """
         all_documentation = []
-        
-        # Process files up to the limit
+
         files_to_process = files[:max_files]
-        
+
         for file in files_to_process:
             if not file.get("content"):
                 continue
-            
-            # Ensure symbols is a list
+
             symbols = file.get("symbols", [])
             if not symbols:
                 continue
-                
+
             docs = await self.document_file(
                 file_id=file["id"],
                 file_path=file["path"],
@@ -225,5 +215,5 @@ Return ONLY the docstring text. Do not include markdown code blocks around it un
                 language=file.get("language", "python"),
             )
             all_documentation.extend(docs)
-            
+
         return all_documentation
