@@ -43,7 +43,7 @@ class MetricsTracker:
         if total_smells > 0:
             smell_penalty = min(25, total_smells * 0.5)
             score -= smell_penalty
-        critical_vulns = metrics.get("critical_vulnerabilities", 0)
+        critical_vulns = metrics.get("critical_vulnerability", 0)
         high_vulns = metrics.get("high_vulnerabilities", 0)
         vuln_penalty = min(25, critical_vulns * 5 + high_vulns * 2)
         score -= vuln_penalty
@@ -118,7 +118,8 @@ class MetricsTracker:
             .one()
         )
         metrics["code_smells_count"] = smell_stats.total or 0
-        metrics["critical_smells"] = smell_stats.critical or 0
+        # Map to MetricsSnapshot model fields (note plural 'criticals_smells')
+        metrics["criticals_smells"] = smell_stats.critical or 0
         metrics["high_smells"] = smell_stats.high or 0
         metrics["medium_smells"] = smell_stats.medium or 0
         metrics["low_smells"] = smell_stats.low or 0
@@ -137,7 +138,8 @@ class MetricsTracker:
             .one()
         )
         metrics["vulnerability_count"] = vuln_stats.total or 0
-        metrics["critical_vulnerabilities"] = vuln_stats.critical or 0
+        # Map to MetricsSnapshot model fields (note singular 'critical_vulnerability')
+        metrics["critical_vulnerability"] = vuln_stats.critical or 0
         metrics["high_vulnerabilities"] = vuln_stats.high or 0
         
         metrics["quality_score"] = self.calculate_qualty_score(metrics)
