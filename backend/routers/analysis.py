@@ -143,7 +143,7 @@ async def get_duplications(
     for dup in duplications:
         file_ids.add(dup.file1_id)
         file_ids.add(dup.file2_id)
-    
+
     files = db.query(File).filter(File.id.in_(file_ids)).all()
     file_map = {f.id: f for f in files}
 
@@ -300,13 +300,12 @@ async def get_code_smells(
             query = query.filter(CodeSmell.severity == severity_enum)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid severity")
-            
     if smell_type:
         try:
             smell_type_enum = SmellType(smell_type.lower())
             query = query.filter(CodeSmell.smell_type == smell_type_enum)
         except ValueError:
-             raise HTTPException(status_code=400, detail="Invalid smell_type")
+            raise HTTPException(status_code=400, detail="Invalid smell_type")
 
     smells = (
         query.order_by(CodeSmell.severity.desc(), CodeSmell.created_at.desc())
@@ -354,9 +353,6 @@ async def get_code_smells(
     }
 
 
-# ----- Auto-Documentation Endpoints (Sprint 9) -----
-
-
 @router.get("/undocumented/{repository_id}")
 async def get_undocumented_symbols(
     repository_id: uuid.UUID, limit: int = 100, db: Session = Depends(get_db)
@@ -400,7 +396,6 @@ async def generate_documentation(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Sprint 9: Target specifically undocumented symbols first
     files = (
         db.query(File)
         .join(Symbol)
@@ -445,8 +440,6 @@ async def generate_documentation(
         except Exception:
             continue
 
-    # Generate documentation
-    # Note: AutoDocumentationService needs to be fully implemented in services/
     doc_service = AutoDocumentationService()
     documentation = await doc_service.document_repository(
         file_data, max_files=max_files
@@ -458,9 +451,6 @@ async def generate_documentation(
         "functions_documented": len(documentation),
         "documentation": documentation,
     }
-
-
-# ----- Metrics History Endpoints -----
 
 
 @router.post("/metrics/{repository_id}/snapshot")
@@ -521,9 +511,6 @@ async def get_metrics_history(
     }
 
 
-# ----- Combined Analysis Endpoint -----
-
-
 @router.post("/full-scan/{repository_id}")
 async def run_full_analysis(
     repository_id: uuid.UUID,
@@ -541,7 +528,6 @@ async def run_full_analysis(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Queue all analysis tasks
     background_tasks.add_task(scan_duplications_task, repository_id)
     background_tasks.add_task(scan_code_smells_task, repository_id)
     background_tasks.add_task(create_snapshot_task, repository_id)
@@ -556,7 +542,6 @@ async def run_full_analysis(
 
 async def create_snapshot_task(repository_id: uuid.UUID):
     """Background task to create metrics snapshot"""
-    # Need new session for background task
     db: Session = SessionLocal()
     try:
         tracker = MetricsTracker(db)

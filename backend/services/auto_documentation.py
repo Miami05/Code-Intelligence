@@ -5,7 +5,6 @@ import uuid
 from typing import Dict, List, Optional
 
 from config import settings
-from httpx import get
 from openai import AsyncOpenAI
 
 
