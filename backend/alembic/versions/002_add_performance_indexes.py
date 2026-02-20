@@ -5,17 +5,22 @@ Revises: merge_heads_final
 Create Date: 2026-02-20
 """
 
+import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import inspect
 
 revision = "002_performance"
-down_revision = "merge_heads_final"  # ✅ Correct: points to latest merge head
+down_revision = "merge_heads_final"  # ✅ Points to latest merge head
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_tables = inspector.get_table_names()
+
     # --- files table ---
-    # file_path not path (matches File model)
     op.create_index("idx_files_repo_id", "files", ["repository_id"])
     op.create_index("idx_files_file_path", "files", ["file_path"])
     op.create_index("idx_files_language", "files", ["language"])
@@ -28,35 +33,45 @@ def upgrade():
     op.create_index("idx_symbols_file_name", "symbols", ["file_id", "name"])
 
     # --- embeddings table ---
-    # No file_id column — only symbol_id (matches Embedding model)
     op.create_index("idx_embeddings_symbol_id", "embeddings", ["symbol_id"])
 
     # --- call_relationships table ---
-    # Model already defines: idx_caller_symbol_id, idx_callee_symbol_id, idx_repository_calls
-    # Only add indexes for columns NOT already indexed by the model
+    # Note: ix_call_relationships_caller_symbol_id etc. already exist from f51a6709cc45
+    # Only adding indexes for columns not yet indexed
     op.create_index("idx_callrel_caller_name", "call_relationships", ["caller_name"])
     op.create_index("idx_callrel_callee_name", "call_relationships", ["callee_name"])
     op.create_index("idx_callrel_is_external", "call_relationships", ["is_external"])
 
     # --- code_smells table ---
-    op.create_index("idx_code_smells_repo", "code_smells", ["repository_id"])
-    op.create_index("idx_code_smells_file_id", "code_smells", ["file_id"])
-    op.create_index("idx_code_smells_severity", "code_smells", ["severity"])
-    op.create_index("idx_code_smells_type", "code_smells", ["smell_type"])
+    if "code_smells" in existing_tables:
+        op.create_index("idx_code_smells_repo", "code_smells", ["repository_id"])
+        op.create_index("idx_code_smells_file_id", "code_smells", ["file_id"])
+        op.create_index("idx_code_smells_severity", "code_smells", ["severity"])
+        op.create_index("idx_code_smells_type", "code_smells", ["smell_type"])
 
     # --- vulnerabilities table ---
-    op.create_index("idx_vulnerabilities_repo", "vulnerabilities", ["repository_id"])
-    op.create_index("idx_vulnerabilities_severity", "vulnerabilities", ["severity"])
+    if "vulnerabilities" in existing_tables:
+        op.create_index("idx_vulnerabilities_repo", "vulnerabilities", ["repository_id"])
+        op.create_index("idx_vulnerabilities_severity", "vulnerabilities", ["severity"])
 
-    # --- metrics_snapshots table (NOT metrics_history — matches MetricsSnapshot model) ---
-    op.create_index("idx_metrics_repo", "metrics_snapshots", ["repository_id"])
-    op.create_index("idx_metrics_created_at", "metrics_snapshots", ["created_at"])
-    op.create_index(
-        "idx_metrics_repo_time", "metrics_snapshots", ["repository_id", "created_at"]
-    )
+    # --- metrics_snapshots table ---
+    # Created by Base.metadata.create_all() at startup, not by a prior migration
+    # Guard with existence check so this doesn't fail on fresh installs
+    if "metrics_snapshots" in existing_tables:
+        op.create_index("idx_metrics_repo", "metrics_snapshots", ["repository_id"])
+        op.create_index("idx_metrics_created_at", "metrics_snapshots", ["created_at"])
+        op.create_index(
+            "idx_metrics_repo_time",
+            "metrics_snapshots",
+            ["repository_id", "created_at"],
+        )
 
 
 def downgrade():
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_tables = inspector.get_table_names()
+
     op.drop_index("idx_files_repo_id", table_name="files")
     op.drop_index("idx_files_file_path", table_name="files")
     op.drop_index("idx_files_language", table_name="files")
@@ -73,14 +88,17 @@ def downgrade():
     op.drop_index("idx_callrel_callee_name", table_name="call_relationships")
     op.drop_index("idx_callrel_is_external", table_name="call_relationships")
 
-    op.drop_index("idx_code_smells_repo", table_name="code_smells")
-    op.drop_index("idx_code_smells_file_id", table_name="code_smells")
-    op.drop_index("idx_code_smells_severity", table_name="code_smells")
-    op.drop_index("idx_code_smells_type", table_name="code_smells")
+    if "code_smells" in existing_tables:
+        op.drop_index("idx_code_smells_repo", table_name="code_smells")
+        op.drop_index("idx_code_smells_file_id", table_name="code_smells")
+        op.drop_index("idx_code_smells_severity", table_name="code_smells")
+        op.drop_index("idx_code_smells_type", table_name="code_smells")
 
-    op.drop_index("idx_vulnerabilities_repo", table_name="vulnerabilities")
-    op.drop_index("idx_vulnerabilities_severity", table_name="vulnerabilities")
+    if "vulnerabilities" in existing_tables:
+        op.drop_index("idx_vulnerabilities_repo", table_name="vulnerabilities")
+        op.drop_index("idx_vulnerabilities_severity", table_name="vulnerabilities")
 
-    op.drop_index("idx_metrics_repo", table_name="metrics_snapshots")
-    op.drop_index("idx_metrics_created_at", table_name="metrics_snapshots")
-    op.drop_index("idx_metrics_repo_time", table_name="metrics_snapshots")
+    if "metrics_snapshots" in existing_tables:
+        op.drop_index("idx_metrics_repo", table_name="metrics_snapshots")
+        op.drop_index("idx_metrics_created_at", table_name="metrics_snapshots")
+        op.drop_index("idx_metrics_repo_time", table_name="metrics_snapshots")
