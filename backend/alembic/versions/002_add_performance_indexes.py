@@ -1,77 +1,86 @@
 """Add performance indexes for Sprint 10
 
 Revision ID: 002_performance
-Revises: 001_initial
-Create Date: 2026-02-19
+Revises: merge_heads_final
+Create Date: 2026-02-20
 """
 
 from alembic import op
 
 revision = "002_performance"
-down_revision = "001_initial"  # Update with your actual previous revision
+down_revision = "merge_heads_final"  # ✅ Correct: points to latest merge head
+branch_labels = None
+depends_on = None
 
 
 def upgrade():
-    # Files table indexes
+    # --- files table ---
+    # file_path not path (matches File model)
     op.create_index("idx_files_repo_id", "files", ["repository_id"])
-    op.create_index("idx_files_path", "files", ["path"])
+    op.create_index("idx_files_file_path", "files", ["file_path"])
     op.create_index("idx_files_language", "files", ["language"])
-    op.create_index(
-        "idx_files_repo_path", "files", ["repository_id", "path"], unique=True
-    )
+    op.create_index("idx_files_repo_language", "files", ["repository_id", "language"])
 
-    # Symbols table indexes
+    # --- symbols table ---
     op.create_index("idx_symbols_file_id", "symbols", ["file_id"])
     op.create_index("idx_symbols_name", "symbols", ["name"])
     op.create_index("idx_symbols_type", "symbols", ["type"])
     op.create_index("idx_symbols_file_name", "symbols", ["file_id", "name"])
 
-    # Embeddings table indexes
-    op.create_index("idx_embeddings_file_id", "embeddings", ["file_id"])
+    # --- embeddings table ---
+    # No file_id column — only symbol_id (matches Embedding model)
     op.create_index("idx_embeddings_symbol_id", "embeddings", ["symbol_id"])
 
-    # Call relationships indexes
-    op.create_index("idx_call_rel_caller", "call_relationships", ["caller_id"])
-    op.create_index("idx_call_rel_callee", "call_relationships", ["callee_id"])
-    op.create_index("idx_call_rel_repo", "call_relationships", ["repository_id"])
+    # --- call_relationships table ---
+    # Model already defines: idx_caller_symbol_id, idx_callee_symbol_id, idx_repository_calls
+    # Only add indexes for columns NOT already indexed by the model
+    op.create_index("idx_callrel_caller_name", "call_relationships", ["caller_name"])
+    op.create_index("idx_callrel_callee_name", "call_relationships", ["callee_name"])
+    op.create_index("idx_callrel_is_external", "call_relationships", ["is_external"])
 
-    # Code smells indexes
-    op.create_index("idx_code_smells_file", "code_smells", ["file_id"])
+    # --- code_smells table ---
+    op.create_index("idx_code_smells_repo", "code_smells", ["repository_id"])
+    op.create_index("idx_code_smells_file_id", "code_smells", ["file_id"])
     op.create_index("idx_code_smells_severity", "code_smells", ["severity"])
     op.create_index("idx_code_smells_type", "code_smells", ["smell_type"])
 
-    # Vulnerabilities indexes
+    # --- vulnerabilities table ---
     op.create_index("idx_vulnerabilities_repo", "vulnerabilities", ["repository_id"])
     op.create_index("idx_vulnerabilities_severity", "vulnerabilities", ["severity"])
 
-    # Metrics history indexes
-    op.create_index("idx_metrics_repo", "metrics_history", ["repository_id"])
-    op.create_index("idx_metrics_timestamp", "metrics_history", ["captured_at"])
+    # --- metrics_snapshots table (NOT metrics_history — matches MetricsSnapshot model) ---
+    op.create_index("idx_metrics_repo", "metrics_snapshots", ["repository_id"])
+    op.create_index("idx_metrics_created_at", "metrics_snapshots", ["created_at"])
     op.create_index(
-        "idx_metrics_repo_time", "metrics_history", ["repository_id", "captured_at"]
+        "idx_metrics_repo_time", "metrics_snapshots", ["repository_id", "created_at"]
     )
 
 
 def downgrade():
-    # Drop all indexes
     op.drop_index("idx_files_repo_id", table_name="files")
-    op.drop_index("idx_files_path")
-    op.drop_index("idx_files_language")
-    op.drop_index("idx_files_repo_path")
-    op.drop_index("idx_symbols_file_id")
-    op.drop_index("idx_symbols_name")
-    op.drop_index("idx_symbols_type")
-    op.drop_index("idx_symbols_file_name")
-    op.drop_index("idx_embeddings_file_id")
-    op.drop_index("idx_embeddings_symbol_id")
-    op.drop_index("idx_call_rel_caller")
-    op.drop_index("idx_call_rel_callee")
-    op.drop_index("idx_call_rel_repo")
-    op.drop_index("idx_code_smells_file")
-    op.drop_index("idx_code_smells_severity")
-    op.drop_index("idx_code_smells_type")
-    op.drop_index("idx_vulnerabilities_repo")
-    op.drop_index("idx_vulnerabilities_severity")
-    op.drop_index("idx_metrics_repo")
-    op.drop_index("idx_metrics_timestamp")
-    op.drop_index("idx_metrics_repo_time")
+    op.drop_index("idx_files_file_path", table_name="files")
+    op.drop_index("idx_files_language", table_name="files")
+    op.drop_index("idx_files_repo_language", table_name="files")
+
+    op.drop_index("idx_symbols_file_id", table_name="symbols")
+    op.drop_index("idx_symbols_name", table_name="symbols")
+    op.drop_index("idx_symbols_type", table_name="symbols")
+    op.drop_index("idx_symbols_file_name", table_name="symbols")
+
+    op.drop_index("idx_embeddings_symbol_id", table_name="embeddings")
+
+    op.drop_index("idx_callrel_caller_name", table_name="call_relationships")
+    op.drop_index("idx_callrel_callee_name", table_name="call_relationships")
+    op.drop_index("idx_callrel_is_external", table_name="call_relationships")
+
+    op.drop_index("idx_code_smells_repo", table_name="code_smells")
+    op.drop_index("idx_code_smells_file_id", table_name="code_smells")
+    op.drop_index("idx_code_smells_severity", table_name="code_smells")
+    op.drop_index("idx_code_smells_type", table_name="code_smells")
+
+    op.drop_index("idx_vulnerabilities_repo", table_name="vulnerabilities")
+    op.drop_index("idx_vulnerabilities_severity", table_name="vulnerabilities")
+
+    op.drop_index("idx_metrics_repo", table_name="metrics_snapshots")
+    op.drop_index("idx_metrics_created_at", table_name="metrics_snapshots")
+    op.drop_index("idx_metrics_repo_time", table_name="metrics_snapshots")
