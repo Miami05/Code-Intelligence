@@ -54,15 +54,16 @@ class CodeSmell(Base):
         nullable=True,
         index=True,
     )
+    # native_enum=True with explicit names matches the existing PostgreSQL ENUM types in DB
     smell_type: Mapped[SmellType] = mapped_column(
-        SQLENUM(SmellType, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        SQLENUM(SmellType, name="smelltype", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
-        index=True
+        index=True,
     )
     severity: Mapped[SmellSeverity] = mapped_column(
-        SQLENUM(SmellSeverity, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        SQLENUM(SmellSeverity, name="smellseverity", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
-        index=True
+        index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
