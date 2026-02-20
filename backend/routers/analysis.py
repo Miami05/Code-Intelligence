@@ -1,10 +1,13 @@
 """Advanced Analysis Endpoints - Sprint 9"""
 
 import uuid
-from typing import Dict, List, Optional
+from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from sqlalchemy import delete
+from sqlalchemy.orm import Session, joinedload
 
 from database import SessionLocal, get_db
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from models import CodeDuplication, CodeSmell, File, Repository, SmellSeverity, Symbol
 from models.code_smell import SmellType
 from models.symbol import SymbolType
@@ -12,8 +15,7 @@ from services.auto_documentation import AutoDocumentationService
 from services.code_smell_detector import CodeSmellDetector
 from services.duplication_scanner import DuplicateScanner
 from services.metrics_tracker import MetricsTracker
-from sqlalchemy import delete
-from sqlalchemy.orm import Session, joinedload
+from utils.cache import cache
 
 router = APIRouter(prefix="/api/analysis", tags=["Advanced Analysis"])
 
@@ -116,6 +118,7 @@ async def scan_duplications_task(repository_id: uuid.UUID):
 
 
 @router.get("/duplications/{repository_id}")
+@cache(expire=1800, prefix="analysis")
 async def get_duplications(
     repository_id: uuid.UUID,
     min_similarity: float = 0.8,
@@ -287,6 +290,7 @@ async def scan_code_smells_task(repository_id: uuid.UUID):
 
 
 @router.get("/code-smells/{repository_id}")
+@cache(expire=1800, prefix="analysis")
 async def get_code_smells(
     repository_id: uuid.UUID,
     severity: Optional[str] = None,
@@ -362,6 +366,7 @@ async def get_code_smells(
 
 
 @router.get("/undocumented/{repository_id}")
+@cache(expire=1800, prefix="analysis")
 async def get_undocumented_symbols(
     repository_id: uuid.UUID, limit: int = 100, db: Session = Depends(get_db)
 ):
@@ -520,6 +525,7 @@ async def create_metrics_snapshot(
 
 
 @router.get("/metrics/{repository_id}/history")
+@cache(expire=3600, prefix="analysis")
 async def get_metrics_history(
     repository_id: uuid.UUID, limit: int = 30, db: Session = Depends(get_db)
 ):

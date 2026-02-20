@@ -4,6 +4,7 @@ Call graph API endpoints.
 
 import re
 from collections import defaultdict
+from sys import prefix
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,7 @@ from database import get_db
 from models.call_relationship import CallRelationship
 from models.file import File
 from models.repository import Repository
+from utils.cache import cache
 
 router = APIRouter(prefix="/api/call-graph", tags=["call-graph"])
 
@@ -92,6 +94,7 @@ def extract_imports_from_file(file_path: str, content: str, language: str) -> Li
 
 
 @router.get("/repositories/{repository_id}/call-graph")
+@cache(expire=600, prefix="call_graph")
 def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
     """
     Get call graph for repository.
@@ -172,6 +175,7 @@ def get_call_graph(repository_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/repositories/{repository_id}/stats")
+@cache(expire=600, prefix="call_graph")
 def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
     """
     Get call graph statistics for repository overview cards.
@@ -180,21 +184,18 @@ def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Count unique functions
     unique_functions = (
         db.query(func.count(func.distinct(CallRelationship.caller_name)))
         .filter(CallRelationship.repository_id == repository_id)
         .scalar()
     )
 
-    # Count total function calls
     total_calls = (
         db.query(func.count(CallRelationship.id))
         .filter(CallRelationship.repository_id == repository_id)
         .scalar()
     )
 
-    # Find dead functions
     all_functions = (
         db.query(func.distinct(CallRelationship.caller_name))
         .filter(CallRelationship.repository_id == repository_id)
@@ -241,6 +242,7 @@ def get_call_graph_stats(repository_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/repositories/{repository_id}/dependencies")
+@cache(expire=600, prefix="call_graph")
 def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
     """
     Get file-level dependency graph.
@@ -295,6 +297,7 @@ def get_dependencies(repository_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/repositories/{repository_id}/dead-code")
+@cache(expire=600, prefix="call_graph")
 def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
     """
     Find dead code (unused functions) in repository.
@@ -345,6 +348,7 @@ def get_dead_code(repository_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/repositories/{repository_id}/circular-deps")
+@cache(expire=600, prefix="call_graph")
 def get_circular_dependencies(repository_id: str, db: Session = Depends(get_db)):
     """
     Find circular dependencies in call graph using DFS cycle detection.
