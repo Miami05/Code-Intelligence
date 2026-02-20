@@ -1,17 +1,20 @@
 from typing import Optional
 
-from config import settings
-from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query
-from models import Embedding, Symbol
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
+
+from config import settings
+from database import get_db
+from models import Embedding, Symbol
+from utils.cache import cache
 from utils.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
 @router.post("/semantic")
+@cache(expire=300, prefix="search")
 def semantic_search(
     query: str = Query(..., description="Natural language search query"),
     limit: int = Query(default=10, le=50),
@@ -34,8 +37,7 @@ def semantic_search(
     query_embedding = generate_embedding(query)
     threshold = threshold or settings.similarity_threshold
 
-    sql_parts = [
-        """
+    sql_parts = ["""
         SELECT 
             s.id as symbol_id,
             s.name,
@@ -53,8 +55,7 @@ def semantic_search(
         JOIN embeddings e ON s.id = CAST(e.symbol_id AS uuid)
         JOIN files f ON s.file_id = f.id
         WHERE 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
-        """
-    ]
+        """]
 
     params = {
         "query_embedding": f"[{','.join(map(str, query_embedding))}]",
@@ -108,6 +109,7 @@ def semantic_search(
 
 
 @router.get("/similar/{symbol_id}")
+@cache(expire=300, prefix="search")
 def find_similar_symbols(
     symbol_id: str,
     limit: int = Query(default=10, le=50),
@@ -130,8 +132,7 @@ def find_similar_symbols(
 
     threshold = threshold or settings.similarity_threshold
 
-    sql = text(
-        """
+    sql = text("""
         SELECT 
             s.id as symbol_id,
             s.name,
@@ -152,8 +153,7 @@ def find_similar_symbols(
           AND 1 - (e.embedding <=> CAST(:query_embedding AS vector)) >= :threshold
         ORDER BY e.embedding <=> CAST(:query_embedding AS vector)
         LIMIT :limit
-        """
-    )
+        """)
 
     results = db.execute(
         sql,

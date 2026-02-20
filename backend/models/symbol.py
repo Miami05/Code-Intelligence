@@ -5,7 +5,7 @@ from typing import Optional
 from database import Base
 from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,6 +51,13 @@ class Symbol(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
     file = relationship("File", back_populates="symbols")
+
+    __table_args__ = (
+        Index("idx_symbols_file_id", "file_id"),
+        Index("idx_symbols_name", "name"),
+        Index("idx_symbols_type", "type"),
+        Index("idx_symbols_file_name", "file_id", "name"),
+    )
 
     def __repr__(self) -> str:
         return f"<Symbol(id={self.id}, name={self.name}, type={self.type.value})>"

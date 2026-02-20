@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,13 @@ class File(Base):
     repository: Mapped["Repository"] = relationship(
         "Repository",
         back_populates="files",
+    )
+
+    __table_args__ = (
+        Index("idx_files_repo_id", "repository_id"),
+        Index("idx_files_file_path", "file_path"),
+        Index("idx_files_language", "language"),
+        Index("idx_files_repo_language", "repository_id", "language"),
     )
 
     def __repr__(self) -> str:

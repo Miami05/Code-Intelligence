@@ -43,7 +43,10 @@ class AutoDocumentationService:
         elif language in ["javascript", "typescript", "java", "c", "cpp", "go"]:
             return bool(re.search(r"/\*\*.*?\*/", function_code, re.DOTALL))
         elif language == "cobol":
-            return bool(re.search(r"(?m)^\s*\*>|(?m)^.{6}\*", function_code))
+            # (?m) must appear only once at the very start of the full pattern
+            # Pattern 1: free-form comment  (*> ...)
+            # Pattern 2: fixed-form comment (column 7 = *)
+            return bool(re.search(r"(?m)^\s*\*>|^.{6}\*", function_code))
         elif language == "assembly":
             return bool(re.search(r"(?m)^\s*[;#]", function_code))
 

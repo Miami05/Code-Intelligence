@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     rag_similarity_threshold: float = 0.6
     rag_max_context_tokens: int = 4000
 
+    # --- Sprint 10: Performance & Scale ---
+    cache_default_ttl: int = 300
+    cache_call_graph_ttl: int = 600
+    cache_search_ttl: int = 300
+    cache_analysis_ttl: int = 1800
+    large_file_threshold: int = 100_000
+    streaming_batch_size: int = 1_000
+    enable_metrics: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

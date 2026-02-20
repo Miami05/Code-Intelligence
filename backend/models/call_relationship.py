@@ -14,43 +14,40 @@ class CallRelationship(Base):
     """
 
     __tablename__ = "call_relationships"
-    
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    
-    # FIX: Changed from String to UUID to match Repository.id type
+
     repository_id = Column(
         UUID(as_uuid=True), ForeignKey("repositories.id"), nullable=False, index=True
     )
-    
-    # FIX: Changed from Integer to UUID to match Symbol.id type
+
     caller_symbol_id = Column(
         UUID(as_uuid=True), ForeignKey("symbols.id"), nullable=False, index=True
     )
     caller_name = Column(String, nullable=False)
     caller_file = Column(String, nullable=False)
-    
+
     callee_name = Column(String, nullable=False)
     callee_file = Column(String, nullable=True)
-    
-    # FIX: Changed from Integer to UUID to match Symbol.id type
+
     callee_symbol_id = Column(
         UUID(as_uuid=True), ForeignKey("symbols.id"), nullable=True, index=True
     )
-    
+
     call_line = Column(Integer, nullable=False)
-    
-    # FIX: Changed from Integer to Boolean
     is_external = Column(Boolean, default=False, nullable=False)
-    
-    # Relationships
+
     caller_symbol = relationship("Symbol", foreign_keys=[caller_symbol_id])
     callee_symbol = relationship("Symbol", foreign_keys=[callee_symbol_id])
-    
-    # FIX: Fixed duplicate index names and typo
+
     __table_args__ = (
         Index("idx_caller_symbol_id", "caller_symbol_id"),
         Index("idx_callee_symbol_id", "callee_symbol_id"),
         Index("idx_repository_calls", "repository_id"),
+        # Sprint 10: additional performance indexes
+        Index("idx_callrel_caller_name", "caller_name"),
+        Index("idx_callrel_callee_name", "callee_name"),
+        Index("idx_callrel_is_external", "is_external"),
     )
 
     def to_dict(self):
