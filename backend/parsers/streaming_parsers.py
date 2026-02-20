@@ -1,67 +1,103 @@
 """
-Large file handler for files with 100k+ lines.
-Uses existing ParseManager with batch processing for memory efficiency.
-
-NOTE:
-- Full file is still parsed (required for AST/tree-sitter correctness).
-- DB inserts are batched to reduce memory spikes during persistence.
-- If ParseManager returns a huge list, peak memory is still dominated by that list.
+Large file handler for 100k+ line files.
+Batches DB inserts to avoid memory spikes.
+Uses the same parser functions as parse_repository.py.
 """
 
-import asyncio
-from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List
+import os
+from typing import Dict, Generator, List
 
-from parsers.parser_manager import ParseManager
+from parsers.assembly_parser import extract_assembly_symbols
+from parsers.c_parser import extract_c_symbols
+from parsers.cobol_parser import extract_cobol_symbols
+from parsers.python_parser import extract_python_symbols
+
+LANGUAGE_CONFIG = {
+    "python": {".py": extract_python_symbols},
+    "c": {".c": extract_c_symbols, ".h": extract_c_symbols},
+    "assembly": {
+        ".asm": extract_assembly_symbols,
+        ".s": extract_assembly_symbols,
+        ".S": extract_assembly_symbols,
+    },
+    "cobol": {
+        ".cob": extract_cobol_symbols,
+        ".cbl": extract_cobol_symbols,
+        ".COB": extract_cobol_symbols,
+        ".CBL": extract_cobol_symbols,
+    },
+}
+
+EXTENSION_MAP = {}
+for lang, ext_map in LANGUAGE_CONFIG.items():
+    for ext, func in ext_map.items():
+        EXTENSION_MAP[ext] = (lang, func)
+
+LINE_THRESHOLD = 100_000
+BATCH_SIZE = 1_000
 
 
 class StreamingParser:
-    BATCH_SIZE = 1000
-    LINE_THRESHOLD = 100000
-
-    def __init__(self) -> None:
-        self.parse_manager = ParseManager()
+    """Handles large file parsing with batched symbol yielding."""
 
     def should_stream(self, file_path: str) -> bool:
-        """Check if file exceeds the large file threshold"""
+        """Return True if file has more than LINE_THRESHOLD lines."""
         try:
+            count = 0
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                for i, _ in enumerate(f, 1):
-                    if i > self.LINE_THRESHOLD:
+                for _ in f:
+                    count += 1
+                    if count > LINE_THRESHOLD:
                         return True
             return False
-        except OSError:
+        except Exception:
             return False
 
-    async def parse_large_files_batched(
+    def get_parser_for_file(self, file_path: str):
+        """Return (language, parser_func) for a given file path, or None."""
+        ext = os.path.splitext(file_path)[1]
+        return EXTENSION_MAP.get(ext)
+
+    def parse_in_batches(
         self, file_path: str, repository_id: str
-    ) -> AsyncIterator[List[Dict]]:
+    ) -> Generator[List[Dict], None, None]:
         """
-        Parse large file using ParseManager (non-blocking via thread pool).
-        Yields symbols in batches of BATCH_SIZE for memory-efficient DB inserts.
+        Parse a large file and yield symbols in batches of BATCH_SIZE.
+        Uses the same parser functions as parse_repository.py.
         """
-        loop = asyncio.get_event_loop()
-        all_symbols = await loop.run_in_executor(
-            None, self.parse_manager.parse_file, file_path, repository_id
-        )
-        for i in range(0, len(all_symbols), self.BATCH_SIZE):
-            batch = all_symbols[i : i + self.BATCH_SIZE]
-            yield batch
-            await asyncio.sleep(0)
+        parser_info = self.get_parser_for_file(file_path)
+        if not parser_info:
+            print(f"⚠️  No parser found for: {file_path}")
+            return
+
+        language, parser_func = parser_info
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                source = f.read()
+            symbols = parser_func(source, file_path)
+            for i in range(0, len(symbols), BATCH_SIZE):
+                yield symbols[i : i + BATCH_SIZE]
+
+        except Exception as e:
+            print(f"❌ StreamingParser error on {file_path}: {e}")
+            return
 
     def get_file_stats(self, file_path: str) -> Dict:
-        """Get basic stats about a large file before parsing"""
+        """Return basic stats about a file."""
         try:
             line_count = 0
-            size_bytes = Path(file_path).stat().st_size
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 for _ in f:
                     line_count += 1
+            size_bytes = os.path.getsize(file_path)
+            ext = os.path.splitext(file_path)[1]
+            parser_info = EXTENSION_MAP.get(ext)
             return {
                 "line_count": line_count,
                 "size_bytes": size_bytes,
-                "is_large": line_count > self.LINE_THRESHOLD,
-                "language": self.parse_manager.get_language_from_extension(file_path),
+                "is_large": line_count > LINE_THRESHOLD,
+                "language": parser_info[0] if parser_info else "unknown",
             }
-        except OSError:
+        except Exception:
             return {}
