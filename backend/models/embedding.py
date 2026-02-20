@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 
 from database import Base
@@ -24,6 +24,10 @@ class Embedding(Base):
     model = Column(String(100), nullable=False)
     dimensions = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow())
+
+    __table_args__ = (
+        Index("idx_embeddings_symbol_id", "symbol_id"),
+    )
 
     def __repr__(self):
         return f"<Embedding(symbol_id={self.symbol_id}, dimensions={self.dimensions})>"

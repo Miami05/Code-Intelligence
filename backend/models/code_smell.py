@@ -8,7 +8,7 @@ from pathlib import Path
 from database import Base
 from sqlalchemy import DateTime
 from sqlalchemy import Enum as SQLENUM
-from sqlalchemy import ForeignKey, Integer, String, Text, func
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -55,13 +55,13 @@ class CodeSmell(Base):
         index=True,
     )
     smell_type: Mapped[SmellType] = mapped_column(
-        SQLENUM(SmellType, native_enum=False, values_callable=lambda x: [e.value for e in x]), 
-        nullable=False, 
+        SQLENUM(SmellType, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
         index=True
     )
     severity: Mapped[SmellSeverity] = mapped_column(
-        SQLENUM(SmellSeverity, native_enum=False, values_callable=lambda x: [e.value for e in x]), 
-        nullable=False, 
+        SQLENUM(SmellSeverity, native_enum=False, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
         index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -77,6 +77,13 @@ class CodeSmell(Base):
     repository = relationship("Repository", backref="code_smells")
     file = relationship("File", backref="code_smells")
     symbol = relationship("Symbol", backref="code_smells")
+
+    __table_args__ = (
+        Index("idx_code_smells_repo", "repository_id"),
+        Index("idx_code_smells_file_id", "file_id"),
+        Index("idx_code_smells_severity", "severity"),
+        Index("idx_code_smells_type", "smell_type"),
+    )
 
     def __repr__(self) -> str:
         return f"<CodeSmell(id={self.id}, type={self.smell_type.value}, severity={self.severity.value})>"
