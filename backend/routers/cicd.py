@@ -69,7 +69,13 @@ async def webhook_github(
         return {"status": "ignored", "action": action}
     pr = payload.get("pull_request", {})
     full_name = payload.get("repository", {}).get("full_name", "")
-    repo = db.query(Repository).filter(Repository.github_repo == full_name).first()
+    # full_name is "owner/repo" but github_repo stores only "repo"
+    parts = full_name.split("/", 1) if "/" in full_name else ["", full_name]
+    owner_name, repo_name = parts[0], parts[1]
+    repo = db.query(Repository).filter(
+        Repository.github_owner == owner_name,
+        Repository.github_repo == repo_name,
+    ).first()
     if not repo:
         return {"status": "skipped", "reason": "repository not tracked"}
     run = cicd_service.create_run(
@@ -113,7 +119,13 @@ async def gitlab_webhook(
     if attrs.get("action") not in ["open", "update", "reopen"]:
         return {"status": "ignored", "action": attrs.get("action")}
     repo_path = payload.get("project", {}).get("path_with_namespace", "")
-    repo = db.query(Repository).filter(Repository.github_repo == repo_path).first()
+    # repo_path is "owner/repo" but github_repo stores only "repo"
+    parts = repo_path.split("/", 1) if "/" in repo_path else ["", repo_path]
+    owner_name, repo_name = parts[0], parts[1]
+    repo = db.query(Repository).filter(
+        Repository.github_owner == owner_name,
+        Repository.github_repo == repo_name,
+    ).first()
     if not repo:
         return {"status": "skipped", "reason": "repository not tracked"}
     run = cicd_service.create_run(
