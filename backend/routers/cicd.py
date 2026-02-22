@@ -69,7 +69,7 @@ async def webhook_github(
         return {"status": "ignored", "action": action}
     pr = payload.get("pull_request", {})
     full_name = payload.get("repository", {}).get("full_name", "")
-    repo = db.query(Repository).filter(Repository.github_repo_name == full_name).first()
+    repo = db.query(Repository).filter(Repository.github_repo == full_name).first()
     if not repo:
         return {"status": "skipped", "reason": "repository not tracked"}
     run = cicd_service.create_run(
@@ -113,7 +113,7 @@ async def gitlab_webhook(
     if attrs.get("action") not in ["open", "update", "reopen"]:
         return {"status": "ignored", "action": attrs.get("action")}
     repo_path = payload.get("project", {}).get("path_with_namespace", "")
-    repo = db.query(Repository).filter(Repository.github_repo_name == repo_path).first()
+    repo = db.query(Repository).filter(Repository.github_repo == repo_path).first()
     if not repo:
         return {"status": "skipped", "reason": "repository not tracked"}
     run = cicd_service.create_run(
