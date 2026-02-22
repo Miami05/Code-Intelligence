@@ -5,7 +5,7 @@
 ![Tech Stack](https://img.shields.io/badge/Backend-FastAPI%20%7C%20PostgreSQL%20%7C%20pgvector-38bdf8?style=flat-square)
 ![AI](https://img.shields.io/badge/AI-OpenAI%20GPT--4%20%7C%20Embeddings-38bdf8?style=flat-square)
 ![Frontend](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript%20%7C%20Tailwind-38bdf8?style=flat-square)
-![Languages](https://img.shields.io/badge/Languages-Python%20%7C%20JS%20%7C%20TS%20%7C%20Java-38bdf8?style=flat-square)
+![Languages](https://img.shields.io/badge/Languages-Python%20%7C%20C%20%7C%20COBOL%20%7C%20Assembly-38bdf8?style=flat-square)
 
 ---
 
@@ -60,9 +60,9 @@ It eliminates the pain of manual code reviews, silently accumulating technical d
 ## Supported Languages
 
 - Python
-- JavaScript
-- TypeScript
-- Java
+- C
+- COBOL
+- Assembly
 
 ---
 
