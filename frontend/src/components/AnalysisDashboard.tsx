@@ -7,7 +7,8 @@ import {
 } from '../types/analysis';
 import { analysisService } from '../services/analysis';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, Copy, FileText, Activity, RefreshCw, CheckCircle, Clock } from 'lucide-react';
+import { AlertTriangle, Copy, FileText, Activity, RefreshCw, CheckCircle, Clock, GitBranch } from 'lucide-react';
+import { CICDTab } from './CICDTab';
 
 export const AnalysisDashboard: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -16,7 +17,7 @@ export const AnalysisDashboard: React.FC = () => {
     const [duplications, setDuplications] = useState<CodeDuplication[]>([]);
     const [undocumented, setUndocumented] = useState<UndocumentedSymbol[]>([]);
     const [metrics, setMetrics] = useState<MetricsSnapshot[]>([]);
-    const [activeTab, setActiveTab] = useState<'smells' | 'duplications' | 'docs' | 'metrics'>('smells');
+    const [activeTab, setActiveTab] = useState<'smells' | 'duplications' | 'docs' | 'metrics' | 'cicd'>('smells');
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -29,10 +30,8 @@ export const AnalysisDashboard: React.FC = () => {
                 analysisService.getMetricsHistory(id)
             ]);
 
-            // Deduplicate results based on ID or content to prevent UI glitches
             const uniqueSmells = Array.from(new Map(smellsData.code_smells.map(item => [item.id, item])).values());
             const uniqueDups = Array.from(new Map(dupsData.duplications.map(item => [item.id, item])).values());
-            // For undocumented symbols, use a composite key if ID is missing or duplicate
             const uniqueUndoc = Array.from(new Map(undocData.undocumented_symbols.map(item => [item.id || `${item.file}-${item.line}-${item.name}`, item])).values());
             
             setSmells(uniqueSmells);
@@ -55,7 +54,6 @@ export const AnalysisDashboard: React.FC = () => {
         setLoading(true);
         try {
             await analysisService.runFullScan(id);
-            // Poll for results
             setTimeout(fetchData, 2000); 
         } catch (error) {
             alert("Failed to start scan");
@@ -81,6 +79,7 @@ export const AnalysisDashboard: React.FC = () => {
         { id: 'duplications', label: 'Duplications', icon: Copy, count: duplications.length },
         { id: 'docs', label: 'Documentation', icon: FileText, count: undocumented.length },
         { id: 'metrics', label: 'Metrics', icon: Activity, count: metrics.length },
+        { id: 'cicd', label: 'CI/CD', icon: GitBranch, count: null },
     ];
 
     if (loading && smells.length === 0 && duplications.length === 0) {
@@ -138,9 +137,11 @@ export const AnalysisDashboard: React.FC = () => {
                                 >
                                     <Icon className="w-4 h-4" />
                                     {tab.label}
-                                    <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                        {tab.count}
-                                    </span>
+                                    {tab.count !== null && (
+                                        <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                            {tab.count}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
@@ -278,6 +279,10 @@ export const AnalysisDashboard: React.FC = () => {
                                 ))
                             )}
                         </div>
+                    )}
+
+                    {activeTab === 'cicd' && id && (
+                        <CICDTab repositoryId={id} />
                     )}
                 </div>
             </div>
