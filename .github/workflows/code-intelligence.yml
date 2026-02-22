@@ -23,7 +23,10 @@ jobs:
             "$CODE_INTEL_URL/api/cicd/webhook/github" \
             -H "Content-Type: application/json" \
             -H "X-GitHub-Event: pull_request" \
+            -H "ngrok-skip-browser-warning: true" \
             --data "@$GITHUB_EVENT_PATH")
+
+          echo "Raw response: $RESPONSE"
 
           if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
             echo "❌ Invalid or empty RESPONSE from Code Intelligence API"
