@@ -33,6 +33,12 @@ jobs:
             exit 1
           fi
 
+          # Validate RESPONSE is valid JSON and not empty
+          if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+            echo "❌ Invalid or empty RESPONSE from Code Intelligence API"
+            exit 1
+          fi
+
           echo "response=$RESPONSE" >> $GITHUB_OUTPUT
 
           PASSED=$(echo "$RESPONSE" | python3 -c \
