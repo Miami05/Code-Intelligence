@@ -1,14 +1,13 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
 from config import settings
 from database import Base, engine
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from middleware.metrics_middleware import MetricsMiddleware
 from routers import (
     ai_assistant_router,
     analysis_router,
     chat_router,
+    cicd_router,
     metrics_router,
     recommendations_router,
     repositories_router,
@@ -18,6 +17,7 @@ from routers.call_graph import router as call_graph_router
 from routers.github import router as github_router
 from routers.search import router as search_router
 from routers.security import router as security_router
+from sqlalchemy import text
 
 app = FastAPI(
     title=settings.api_tittle,
@@ -45,6 +45,7 @@ app.include_router(ai_assistant_router)
 app.include_router(chat_router)
 app.include_router(analysis_router)
 app.include_router(metrics_router)
+app.include_router(cicd_router)
 app.add_middleware(MetricsMiddleware)
 
 

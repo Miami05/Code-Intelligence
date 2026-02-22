@@ -1,0 +1,62 @@
+name: Code Intelligence Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Analysis
+        id: gate
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "${{ secrets.CODE_INTEL_URL }}/api/cicd/webhook/github" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: pull_request" \
+            -d '${{ toJson(github.event) }}')
+
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+
+          PASSED=$(echo "$RESPONSE" | python3 -c \
+            "import sys,json; d=json.load(sys.stdin); print(str(d.get('quality_gate',True)).lower())")
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+
+          RUN_ID=$(echo "$RESPONSE" | python3 -c \
+            "import sys,json; print(json.load(sys.stdin).get('run_id',''))")
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const resp = JSON.parse('${{ steps.gate.outputs.response }}');
+            const passed = resp.quality_gate;
+            const runId = resp.run_id || '';
+            const reportUrl = runId
+              ? `${{ secrets.CODE_INTEL_URL }}/api/cicd/report/${runId}`
+              : '';
+
+            const body = [
+              '',
+              resp.summary || '',
+              '',
+              reportUrl ? `[📄 View Full Report](${reportUrl})` : '',
+              '',
+              '_Powered by Code Intelligence Platform_'
+            ].join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Fail if gate blocked
+        if: steps.gate.outputs.passed == 'false'
+        run: |
+          echo "❌ Quality gate FAILED — merge blocked"
+          exit 1

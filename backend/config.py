@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     streaming_batch_size: int = 1_000
     enable_metrics: bool = True
 
+    # --- Sprint 14: CI/CD Integration ---
+    github_webhook_secret: Optional[str] = None
+    gitlab_webhook_token: Optional[str] = None
+    smtp_host: Optional[str] = None
+    smtp_port: int = 465
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
