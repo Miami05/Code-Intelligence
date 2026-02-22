@@ -25,7 +25,9 @@ jobs:
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
 
           RUN_ID=$(echo "$RESPONSE" | python3 -c \
-            "import sys,json; print(json.load(sys.stdin).get('run_id',''))")
+            "import sys, json; \
+             try: print(json.load(sys.stdin).get('run_id','')) \
+             except Exception: print('')")
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
