@@ -11,12 +11,27 @@ jobs:
     steps:
       - name: Trigger Analysis
         id: gate
+        env:
+          CODE_INTEL_URL: ${{ secrets.CODE_INTEL_URL }}
         run: |
+          if [ -z "$CODE_INTEL_URL" ]; then
+            echo "❌ CODE_INTEL_URL secret is not set"
+            exit 1
+          fi
+
           RESPONSE=$(curl -s -X POST \
-            "${{ secrets.CODE_INTEL_URL }}/api/cicd/webhook/github" \
+            "$CODE_INTEL_URL/api/cicd/webhook/github" \
             -H "Content-Type: application/json" \
             -H "X-GitHub-Event: pull_request" \
-            -d '${{ toJson(github.event) }}')
+            -H "ngrok-skip-browser-warning: true" \
+            --data "@$GITHUB_EVENT_PATH")
+
+          echo "Raw response: $RESPONSE"
+
+          if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+            echo "❌ Invalid or empty RESPONSE from Code Intelligence API"
+            exit 1
+          fi
 
           echo "response=$RESPONSE" >> $GITHUB_OUTPUT
 
@@ -25,9 +40,7 @@ jobs:
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
 
           RUN_ID=$(echo "$RESPONSE" | python3 -c \
-            "import sys, json; \
-             try: print(json.load(sys.stdin).get('run_id','')) \
-             except Exception: print('')")
+            "import sys,json; print(json.load(sys.stdin).get('run_id',''))")
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
