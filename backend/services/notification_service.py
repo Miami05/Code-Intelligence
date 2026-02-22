@@ -35,7 +35,7 @@ class NotificationService:
         try:
             async with httpx.AsyncClient() as client:
                 r = await client.post(
-                    webhook_url, json={"attachment": [attachment]}, timeout=10.0
+                    webhook_url, json={"attachments": [attachment]}, timeout=10.0
                 )
                 return r.status_code == 200
         except Exception as e:
