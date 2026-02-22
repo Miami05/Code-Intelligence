@@ -6,6 +6,7 @@
 ![AI](https://img.shields.io/badge/AI-OpenAI%20GPT--4%20%7C%20Embeddings-38bdf8?style=flat-square)
 ![Frontend](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript%20%7C%20Tailwind-38bdf8?style=flat-square)
 ![Languages](https://img.shields.io/badge/Languages-Python%20%7C%20C%20%7C%20COBOL%20%7C%20Assembly-38bdf8?style=flat-square)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions)
 
 ---
 
@@ -29,9 +30,63 @@ It eliminates the pain of manual code reviews, silently accumulating technical d
 ### ⚙️ Automation Layer
 - **Auto-Documentation Generator** — Creates docstrings for undocumented functions automatically
 - **Quality Gate Engine** — 7 configurable threshold types to block failing deployments
-- **GitHub Webhook Integration** — Automatic PR checks and commit status updates
-- **Run History & Reports** — Detailed tracking of every quality gate run
+- **GitHub Actions Integration** — Automatic quality checks on every Pull Request
+- **GitHub Webhook Integration** — Real-time PR analysis triggered on `opened`, `synchronize`, and `reopened` events
+- **Run History & Reports** — Detailed HTML reports for every quality gate run
 - **Notifications** — Real-time alerts via Slack and email
+
+---
+
+## CI/CD Integration (Sprint 14)
+
+Every Pull Request is automatically analyzed by the Quality Gate engine via GitHub Actions.
+
+### How It Works
+
+```
+Pull Request Opened
+       │
+       ▼
+GitHub Actions Workflow
+       │
+       ▼
+POST /api/cicd/webhook/github
+       │
+       ▼
+Quality Gate Engine runs 4 checks:
+  ✅ Complexity
+  ✅ Code Smells
+  ✅ Vulnerabilities
+  ✅ Duplication
+       │
+       ▼
+Result posted as PR comment
+       │
+  ┌────┴────┐
+  ▼         ▼
+PASSED   BLOCKED
+  ✅        ❌
+```
+
+### Setup
+
+1. Add the workflow file to your repo at `.github/workflows/code-intelligence.yml`
+2. Set the `CODE_INTEL_URL` secret to your backend URL (e.g. via [ngrok](https://ngrok.com) for local dev)
+3. Open a Pull Request — the quality gate runs automatically
+
+### Quality Gate Thresholds
+
+| Check | Default Threshold |
+|---|---|
+| Max Cyclomatic Complexity | 10 |
+| Max Code Smells | 20 |
+| Max Critical Smells | 0 |
+| Max Vulnerabilities | 5 |
+| Max Critical Vulnerabilities | 0 |
+| Min Quality Score | 70% |
+| Max Duplication | 10% |
+
+All thresholds are configurable via `PUT /api/cicd/quality-gate/{repository_id}`.
 
 ---
 
@@ -42,7 +97,7 @@ It eliminates the pain of manual code reviews, silently accumulating technical d
 | **Backend** | FastAPI, PostgreSQL 15, pgvector, Alembic, Redis |
 | **AI / ML** | OpenAI GPT-4, Ada Embeddings, pgvector |
 | **Frontend** | React 18, TypeScript, Tailwind CSS, Recharts, Lucide Icons |
-| **DevOps** | GitHub Actions, GitHub Webhooks, Docker |
+| **DevOps** | GitHub Actions, GitHub Webhooks, Docker, ngrok |
 
 ---
 
@@ -53,7 +108,7 @@ It eliminates the pain of manual code reviews, silently accumulating technical d
 | 1–7 | **Foundation** | GitHub ingestion, PostgreSQL + pgvector, AST parsing, React dashboard |
 | 8–11 | **Intelligence** | GPT-4 smell detection, duplication engine, semantic search, security scanner |
 | 12–13 | **Automation** | Auto-docs, quality metrics tracking, 4-tab analysis dashboard |
-| 14 | **CI/CD Integration** | Quality gates, GitHub webhooks, Slack/email notifications |
+| 14 | **CI/CD Integration** | Quality gate engine, GitHub Actions workflow, webhook handlers, Slack/email notifications, HTML reports |
 
 ---
 
@@ -73,6 +128,7 @@ It eliminates the pain of manual code reviews, silently accumulating technical d
 - ✅ **4 Programming languages** supported
 - ✅ **7 Configurable quality gate** threshold types
 - ✅ **1536-dimension** vector embeddings for semantic search
+- ✅ **GitHub Actions** CI/CD pipeline with automatic PR quality checks
 
 ---
 
