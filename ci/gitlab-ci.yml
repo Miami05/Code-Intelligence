@@ -1,0 +1,39 @@
+stages:
+  - analyze
+  - notify
+
+code-intelligence:
+  stage: analyze
+  image: curlimages/curl:latest
+  only:
+    - merge_requests
+  script:
+    - |
+      RESPONSE=$(curl -s -X POST "$CODE_INTEL_URL/api/cicd/webhook/gitlab" \
+        -H "Content-Type: application/json" \
+        -H "X-Gitlab-Event: Merge Request Hook" \
+        -H "X-Gitlab-Token: $CODE_INTEL_GITLAB_TOKEN" \
+        -d "{
+          \"object_attributes\": {
+            \"action\": \"update\",
+            \"source_branch\": \"$CI_COMMIT_REF_NAME\",
+            \"iid\": $CI_MERGE_REQUEST_IID,
+            \"title\": \"$CI_MERGE_REQUEST_TITLE\",
+            \"last_commit\": {\"id\": \"$CI_COMMIT_SHA\"}
+          },
+          \"project\": {\"path_with_namespace\": \"$CI_PROJECT_PATH\"}
+        }")
+      echo "Result: $RESPONSE"
+      echo "$RESPONSE" | grep -q '"quality_gate":false' && exit 1 || exit 0
+
+notify-slack:
+  stage: notify
+  image: curlimages/curl:latest
+  when: always
+  only:
+    - merge_requests
+  script:
+    - |
+      curl -s -X POST "$CODE_INTEL_URL/api/cicd/notify/slack" \
+        -H "Content-Type: application/json" \
+        -d "{\"repository_id\":\"$CODE_INTEL_REPO_ID\",\"webhook_url\":\"$SLACK_WEBHOOK_URL\"}"
